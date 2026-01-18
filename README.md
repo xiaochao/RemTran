@@ -15,21 +15,38 @@
 
 ## 📸 功能展示
 
-### 翻译历史
-查看所有翻译记录，支持搜索和管理历史数据。
-![翻译历史](design/his.png)
-
-### 翻译设置
-配置腾讯云API密钥、语言偏好等个性化设置。
-![翻译设置](design/set.png)
-
-### 翻译弹窗
-双击选词后即时显示翻译结果，包含音标、例句和词典释义。
-![翻译弹窗](design/pop.png)
-
-### 手动翻译
-在Web页面手动输入文本进行翻译，支持多语言互译。
-![手动翻译](design/trans.png)
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="design/his.png" alt="翻译历史" width="100%" />
+      <br />
+      <strong>翻译历史</strong>
+      <br />
+      <small>查看所有翻译记录，支持搜索和管理历史数据</small>
+    </td>
+    <td align="center" width="25%">
+      <img src="design/set.png" alt="翻译设置" width="100%" />
+      <br />
+      <strong>翻译设置</strong>
+      <br />
+      <small>配置腾讯云API密钥、语言偏好等个性化设置</small>
+    </td>
+    <td align="center" width="25%">
+      <img src="design/pop.png" alt="翻译弹窗" width="100%" />
+      <br />
+      <strong>翻译弹窗</strong>
+      <br />
+      <small>双击选词后即时显示翻译结果，包含音标、例句和词典释义</small>
+    </td>
+    <td align="center" width="25%">
+      <img src="design/trans.png" alt="手动翻译" width="100%" />
+      <br />
+      <strong>手动翻译</strong>
+      <br />
+      <small>在Web页面手动输入文本进行翻译，支持多语言互译</small>
+    </td>
+  </tr>
+</table>
 
 ## 🚀 快速开始
 
