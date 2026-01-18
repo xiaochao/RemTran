@@ -1,0 +1,295 @@
+/* 翻译提示框样式 */
+.tencent-translator-tooltip {
+  position: absolute;
+  background: white;
+  border: 2px solid transparent;
+  border-image: linear-gradient(90deg, #2B7FFF 0%, #AD46FF 100%) 1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(43, 127, 255, 0.2);
+  padding: 0;
+  min-width: 360px;
+  max-width: 500px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 顶部标题栏 */
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(135deg, rgba(43, 127, 255, 0.05) 0%, rgba(173, 70, 255, 0.05) 100%);
+}
+
+.tooltip-word {
+  font-size: 24px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #2B7FFF 0%, #AD46FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.tooltip-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tooltip-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s;
+  color: #666;
+  font-size: 20px;
+}
+
+.tooltip-action-btn:hover {
+  background: #f5f5f5;
+}
+
+.tooltip-action-btn.bookmarked {
+  color: #FFA726;
+}
+
+/* 音标区域 */
+.phonetics-section {
+  display: flex;
+  gap: 20px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.phonetic-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phonetic-label {
+  font-weight: 600;
+  color: #666;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.phonetic-text {
+  color: #333;
+  font-size: 14px;
+}
+
+.phonetic-audio-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2B7FFF;
+  font-size: 16px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.phonetic-audio-btn:hover {
+  background: rgba(43, 127, 255, 0.1);
+}
+
+/* 内容区域 */
+.tooltip-content {
+  padding: 16px 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 滚动条样式 */
+.tooltip-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tooltip-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.tooltip-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2B7FFF 0%, #AD46FF 100%);
+  border-radius: 4px;
+}
+
+.tooltip-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #1a6fef 0%, #9d36ef 100%);
+}
+
+/* 标题 */
+.content-title {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+/* 加载状态 */
+.loading {
+  color: #666;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* 词性和释义 */
+.meaning-item {
+  margin-bottom: 16px;
+}
+
+.meaning-item:last-child {
+  margin-bottom: 0;
+}
+
+.meaning-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.part-of-speech {
+  color: #2B7FFF;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.definitions-text {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 例句 */
+.example-section {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 3px solid #2B7FFF;
+}
+
+.example-en {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.example-zh {
+  color: #777;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 简单翻译模式（非词典） */
+.simple-translation {
+  padding: 16px 20px;
+}
+
+.original-text {
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 15px;
+}
+
+.translation-text {
+  background: linear-gradient(90deg, #2B7FFF 0%, #AD46FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 15px;
+  font-weight: 500;
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.detected-lang {
+  color: #999;
+  font-size: 12px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 旧版音标样式（用于简单模式） */
+.phonetic {
+  color: #666;
+  font-style: italic;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+/* 多翻译结果列表 */
+.translations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.translation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(43, 127, 255, 0.05) 0%, rgba(173, 70, 255, 0.05) 100%);
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.translation-item:hover {
+  background: linear-gradient(135deg, rgba(43, 127, 255, 0.1) 0%, rgba(173, 70, 255, 0.1) 100%);
+  border-left-color: #2B7FFF;
+}
+
+.translation-source {
+  color: #2B7FFF;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(43, 127, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.translation-text {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.6;
+  flex: 1;
+}
+
+/* 定义文本样式 */
+.definition-text {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+  padding-left: 12px;
+}
+
+.definition-text:last-child {
+  margin-bottom: 0;
+}
+

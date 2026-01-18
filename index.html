@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻译助手 - 登录</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Supabase JS SDK (本地文件，兼容 Chrome 扩展 Manifest V3) -->
+    <script src="supabase.js"></script>
+    <style>
+        /* 加载遮罩样式 */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text {
+            margin-top: 20px;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* 默认隐藏登录容器 */
+        .login-container {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .login-container.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载...</div>
+    </div>
+
+    <div class="login-container">
+        <!-- 头部区域 -->
+        <div class="header">
+            <h1 class="title">欢迎使用翻译助手</h1>
+            <p class="subtitle">请选择登录方式</p>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="content">
+            <!-- 登录方式标签 -->
+            <div class="tab-list">
+                <button class="tab-button active" data-tab="email">
+                    <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M2.66667 5.33333L8 9.33333L13.3333 5.33333" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2.66667 4.66667H13.3333V11.3333C13.3333 11.687 13.1929 12.0261 12.9428 12.2761C12.6928 12.5262 12.3536 12.6667 12 12.6667H4C3.64638 12.6667 3.30724 12.5262 3.05719 12.2761C2.80714 12.0261 2.66667 11.687 2.66667 11.3333V4.66667Z" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>邮箱</span>
+                </button>
+                <button class="tab-button" data-tab="phone">
+                    <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 2.66667H6C5.26362 2.66667 4.66667 3.26362 4.66667 4V12C4.66667 12.7364 5.26362 13.3333 6 13.3333H10C10.7364 13.3333 11.3333 12.7364 11.3333 12V4C11.3333 3.26362 10.7364 2.66667 10 2.66667Z" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>手机</span>
+                </button>
+                <button class="tab-button" data-tab="wechat">
+                    <svg class="icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <circle cx="5.33333" cy="5.33333" r="0.666667" fill="currentColor"/>
+                        <circle cx="10.6667" cy="5.33333" r="0.666667" fill="currentColor"/>
+                        <circle cx="5.33333" cy="9.33333" r="0.666667" fill="currentColor"/>
+                        <circle cx="10.6667" cy="9.33333" r="0.666667" fill="currentColor"/>
+                        <path d="M10.6667 10.6667C10.6667 10.6689 10.6667 10.6711 10.6667 10.6733" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="7.33333" cy="7" r="0.666667" fill="currentColor"/>
+                        <path d="M5.33333 7.66667C5.33467 7.66667 5.336 7.66667 5.33733 7.66667" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7.33333 5.33333C7.33467 5.33333 7.336 5.33333 7.33733 5.33333" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7.33333 9.33333C7.33333 9.33556 7.33333 9.33778 7.33333 9.34" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M10.6667 7.66667H11" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M10.6667 7.66667C10.6667 7.66667 10.6667 7.66667 10.6667 7.66667" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M7.33333 10.6667V11" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>微信</span>
+                </button>
+            </div>
+
+            <!-- 登录类型切换 -->
+            <div class="login-type-switch">
+                <button class="switch-button active" data-type="password">密码登录</button>
+                <button class="switch-button" data-type="code">验证码登录</button>
+            </div>
+
+            <!-- 登录表单 -->
+            <form class="login-form">
+                <div class="form-group">
+                    <label class="form-label">邮箱地址</label>
+                    <input type="email" class="form-input" placeholder="请输入邮箱地址" required>
+                </div>
+
+                <div class="form-group password-group">
+                    <label class="form-label">密码</label>
+                    <div class="input-wrapper">
+                        <input type="password" class="form-input" placeholder="请输入密码" required>
+                        <button type="button" class="toggle-password">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M1.33334 8C1.33334 8 3.33334 3.33333 8.00001 3.33333C12.6667 3.33333 14.6667 8 14.6667 8C14.6667 8 12.6667 12.6667 8.00001 12.6667C3.33334 12.6667 1.33334 8 1.33334 8Z" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.33333"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group code-group" style="display: none;">
+                    <label class="form-label">验证码</label>
+                    <div class="input-wrapper">
+                        <input type="text" class="form-input" placeholder="请输入验证码" maxlength="6">
+                        <button type="button" class="send-code">发送验证码</button>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox">
+                        <span>记住我</span>
+                    </label>
+                    <a href="#" class="forgot-link">忘记密码？</a>
+                </div>
+
+                <button type="submit" class="submit-button">登录</button>
+
+                <div class="divider">
+                    <span>或</span>
+                </div>
+
+                <div class="social-login">
+                    <button type="button" class="social-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M19.6 10.23c0-.82-.1-1.42-.25-2.05H10v3.72h5.5c-.15.96-.74 2.31-2.04 3.22v2.45h3.16c1.89-1.73 2.98-4.3 2.98-7.34z"/>
+                            <path d="M10 20c2.7 0 4.96-.89 6.62-2.42l-3.16-2.45c-.86.58-1.97.92-3.46.92-2.65 0-4.89-1.78-5.69-4.17H1.08v2.52C2.73 17.35 6.09 20 10 20z"/>
+                            <path d="M4.31 11.88c-.22-.58-.34-1.21-.34-1.88 0-.67.12-1.3.34-1.88V5.6H1.08C.39 6.97 0 8.45 0 10s.39 3.03 1.08 4.4l3.23-2.52z"/>
+                            <path d="M10 3.83c1.5 0 2.85.51 3.91 1.53l2.86-2.86C14.96.99 12.7 0 10 0 6.09 0 2.73 2.65 1.08 6.6l3.23 2.52C5.11 5.61 7.35 3.83 10 3.83z"/>
+                        </svg>
+                        <span>使用 Google 登录</span>
+                    </button>
+                </div>
+
+                <div class="register-link">
+                    还没有账号？<a href="#">立即注册</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 配置文件（必须在 supabase-config.js 之前引入） -->
+    <script src="config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-service.js"></script>
+    <script src="database-service.js"></script>
+    <script src="script-supabase.js"></script>
+</body>
+</html>

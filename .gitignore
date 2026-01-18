@@ -1,0 +1,55 @@
+# 依赖文件
+node_modules/
+package-lock.json
+yarn.lock
+
+# 编辑器配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 构建输出
+dist/
+build/
+*.zip
+
+# 日志文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 环境配置（如果使用）
+.env
+.env.local
+.env.*.local
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 敏感信息（永远不要提交）
+*secret*
+*private*
+*.pem
+*.key
+
+# Chrome扩展打包文件
+*.crx
+*.pem
+
+# 配置文件（包含敏感信息）
+config.js
+config.local.js

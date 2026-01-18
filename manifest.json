@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "腾讯云翻译",
+  "version": "1.0.0",
+  "description": "双击选中词语即可翻译，支持音标显示和翻译历史记录，使用腾讯云机器翻译API",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://tmt.tencentcloudapi.com/*",
+    "https://api.dictionaryapi.dev/*",
+    "https://*.supabase.co/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://tmt.tencentcloudapi.com https://api.dictionaryapi.dev https://*.supabase.co"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["tooltip.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

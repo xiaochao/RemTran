@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背单词</title>
+    <link rel="stylesheet" href="translator.css">
+    <style>
+        /* 重置 body 样式，确保全屏显示 */
+        html, body {
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 100% !important;
+            min-height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* 背单词全屏样式 */
+        .memory-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .memory-container {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 700px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .memory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .memory-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .progress-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .memory-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .memory-close:hover {
+            opacity: 1;
+        }
+
+        .word-display {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .original-word {
+            font-size: 48px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .word-phonetic {
+            font-size: 18px;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+
+        .word-language {
+            display: inline-block;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .quiz-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .quiz-option {
+            padding: 20px;
+            border: 3px solid #e2e8f0;
+            border-radius: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 16px;
+            color: #2d3748;
+            text-align: center;
+        }
+
+        .quiz-option:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .quiz-option.selected {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .quiz-option.correct {
+            border-color: #48bb78;
+            background: #c6f6d5;
+        }
+
+        .quiz-option.wrong {
+            border-color: #f56565;
+            background: #fed7d7;
+        }
+
+        .memory-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .action-button {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .submit-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .submit-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .skip-button {
+            background: #edf2f7;
+            color: #4a5568;
+        }
+
+        .skip-button:hover {
+            background: #e2e8f0;
+        }
+
+        .memory-complete {
+            text-align: center;
+            padding: 60px 40px;
+        }
+
+        .complete-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .complete-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .complete-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+
+        .complete-stat {
+            text-align: center;
+        }
+
+        .complete-stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .complete-stat-label {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 600px) {
+            .quiz-options {
+                grid-template-columns: 1fr;
+            }
+
+            .original-word {
+                font-size: 36px;
+            }
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-words {
+            text-align: center;
+            padding: 60px 40px;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #f7fafc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .empty-subtitle {
+            font-size: 16px;
+            color: #718096;
+            margin-bottom: 20px;
+        }
+
+        .import-button {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .import-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="memory-fullscreen" id="memoryFullscreen">
+        <div class="memory-container" id="memoryContainer">
+            <!-- 内容将由 JavaScript 动态生成 -->
+        </div>
+    </div>
+
+    <script src="supabase.js"></script>
+    <!-- 配置文件（必须在 supabase-config.js 之前引入） -->
+    <script src="config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-service.js"></script>
+    <script src="database-service.js"></script>
+    <script src="memory.js"></script>
+</body>
+</html>

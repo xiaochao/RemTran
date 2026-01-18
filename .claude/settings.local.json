@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version:*)",
+      "Bash(python generate_icons.py:*)",
+      "Bash(pip install:*)",
+      "Bash(dir:*)",
+      "WebFetch(domain:www.figma.com)",
+      "Bash(curl:*)",
+      "Bash(del \"C:\\Users\\cschy\\Documents\\project\\tran\\script.js\")",
+      "Bash(del \"C:\\Users\\cschy\\Documents\\project\\tran\\translator.js\")",
+      "Bash(rm:*)",
+      "Bash(del database-schema.sql database-migration.sql setup-database.sql fix-database-trigger.sql database-schema-update.sql)",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(del create-test-user.html test.html generate-icons.html)",
+      "Bash(powershell:*)",
+      "Bash(ls:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

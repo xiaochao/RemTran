@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻译助手</title>
+    <link rel="stylesheet" href="translator.css">
+    <!-- Supabase JS SDK (本地文件，兼容 Chrome 扩展 Manifest V3) -->
+    <script src="supabase.js"></script>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="header-left">
+                <svg class="header-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h2m-1-1v6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1 class="app-title">翻译助手</h1>
+            </div>
+            <button class="test-button">测</button>
+        </div>
+    </header>
+
+    <!-- 功能导航栏 -->
+    <nav class="tab-navigation">
+        <button class="nav-tab active">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M4 6h12M4 6a1.5 1.5 0 110-3h12a1.5 1.5 0 110 3M4 6v8a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0016 14V6m-7 3h1.5m-.75-.75v4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>翻译</span>
+        </button>
+        <button class="nav-tab">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10 5v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span>历史</span>
+        </button>
+        <button class="nav-tab">
+            <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10 2v2m0 12v2M18 10h-2M4 10H2m13.657-5.657l-1.414 1.414M7.757 13.243l-1.414 1.414m9.314 0l-1.414-1.414M7.757 6.757L6.343 5.343" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span>设置</span>
+        </button>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <main class="main-content">
+        <div class="translator-container">
+            <!-- 源语言区域 -->
+            <div class="translation-panel">
+                <div class="panel-header">
+                    <select class="language-select" id="sourceLanguage">
+                        <option value="en" selected>英语</option>
+                        <option value="zh">中文</option>
+                        <option value="ja">日语</option>
+                        <option value="ko">韩语</option>
+                        <option value="fr">法语</option>
+                        <option value="de">德语</option>
+                        <option value="es">西班牙语</option>
+                        <option value="ru">俄语</option>
+                    </select>
+                </div>
+
+                <div class="input-area">
+                    <textarea
+                        class="translation-input"
+                        id="sourceText"
+                        placeholder="输入要翻译的英文文本..."
+                        maxlength="5000"
+                    ></textarea>
+                </div>
+
+                <div class="panel-footer">
+                    <span class="char-count">
+                        <span id="charCount">0</span> / 5000
+                    </span>
+                </div>
+            </div>
+
+            <!-- 翻译按钮 -->
+            <button class="translate-button" id="translateBtn">
+                <span>翻译</span>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M7 4l6 6-6 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+
+            <!-- 目标语言区域（初始隐藏，翻译后显示） -->
+            <div class="translation-panel result-panel" id="resultPanel" style="display: none;">
+                <div class="panel-header">
+                    <select class="language-select" id="targetLanguage">
+                        <option value="zh" selected>中文</option>
+                        <option value="en">英语</option>
+                        <option value="ja">日语</option>
+                        <option value="ko">韩语</option>
+                        <option value="fr">法语</option>
+                        <option value="de">德语</option>
+                        <option value="es">西班牙语</option>
+                        <option value="ru">俄语</option>
+                    </select>
+                    <div class="result-actions">
+                        <button class="action-btn" title="复制">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M3 11V3a1 1 0 011-1h8" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                        </button>
+                        <button class="action-btn" title="朗读">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 3v10M5 6l3-3 3 3M11 10l-3 3-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="output-area">
+                    <div class="translation-output" id="translationResult">
+                        <!-- 翻译结果将显示在这里 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 历史记录页面（初始隐藏） -->
+    <main class="main-content history-content" id="historyPage" style="display: none;">
+        <div class="history-container">
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card stat-card-blue">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M4 20V10L12 4L20 10V20H15V14H9V20H4Z" fill="currentColor" opacity="0.2"/>
+                                <path d="M4 10L12 4L20 10M4 10V20H9M4 10L12 16L20 10M20 10V20H15M9 20V14H15V20M9 20H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-label">总计</div>
+                    </div>
+                    <div class="stat-value" id="totalCount">0</div>
+                </div>
+
+                <div class="stat-card stat-card-green">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="4" width="18" height="18" rx="2" fill="currentColor" opacity="0.2"/>
+                                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-label">今日</div>
+                    </div>
+                    <div class="stat-value" id="todayCount">0</div>
+                </div>
+
+                <div class="stat-card stat-card-purple">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.2"/>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-label">常用</div>
+                    </div>
+                    <div class="stat-value stat-lang" id="commonLang">简体中文</div>
+                </div>
+            </div>
+
+            <!-- 开始背诵按钮 -->
+            <button class="start-memory-button" id="startMemoryBtn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M3 4a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V4z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 2v4M12 2v4M3 10h14" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="10" cy="15" r="1" fill="currentColor"/>
+                </svg>
+                <span>开始背诵</span>
+            </button>
+
+            <!-- 记录数量 -->
+            <div class="record-count">
+                <span>共 <span id="recordCount">0</span> 条记录</span>
+            </div>
+
+            <!-- 历史记录列表 -->
+            <div class="history-list" id="historyList">
+                <!-- 历史记录将动态添加 -->
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                            <circle cx="32" cy="32" r="30" stroke="#E0E0E0" stroke-width="2"/>
+                            <path d="M32 16v16l12 12" stroke="#E0E0E0" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <p class="empty-title">暂无翻译记录</p>
+                    <p class="empty-subtitle">开始翻译后会自动保存历史记录</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 设置页面（初始隐藏） -->
+    <main class="main-content settings-content" id="settingsPage" style="display: none;">
+        <div class="settings-container">
+            <!-- 主设置列表 -->
+            <div class="settings-list" id="mainSettings">
+                <div class="settings-menu-item" data-target="apiSettings">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 3v2M10 15v2M17 10h-2M5 10H3M14.828 5.172l-1.414 1.414M6.586 13.414l-1.414 1.414M14.828 14.828l-1.414-1.414M6.586 6.586L5.172 5.172" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        <span class="menu-item-title">翻译渠道</span>
+                    </div>
+                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <div class="settings-menu-item" data-target="translationSettings">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M4 6h12M4 6a1.5 1.5 0 110-3h12a1.5 1.5 0 110 3M4 6v8a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0016 14V6m-7 3h1.5m-.75-.75v4.5" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        <span class="menu-item-title">翻译设置</span>
+                    </div>
+                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <div class="settings-menu-item" data-target="extensionSettings">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M8 3v14M3 8h14" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        <span class="menu-item-title">扩展功能</span>
+                    </div>
+                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <div class="settings-menu-item" data-target="displaySettings">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        <span class="menu-item-title">显示设置</span>
+                    </div>
+                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <div class="settings-menu-item" data-target="memorySettings">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M3 4a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V4z" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M8 2v4M12 2v4M3 10h14" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="10" cy="15" r="1" fill="currentColor"/>
+                        </svg>
+                        <span class="menu-item-title">背单词设置</span>
+                    </div>
+                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <div class="settings-menu-item">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M10 6v4M10 13h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <div class="menu-item-info">
+                            <span class="menu-item-title">关于</span>
+                            <small class="menu-item-subtitle">版本 1.0.0</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-menu-item">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <circle cx="10" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        <div class="menu-item-info">
+                            <span class="menu-item-title">账号</span>
+                            <small class="menu-item-subtitle" id="currentUser">未登录</small>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="logout-button" id="logoutBtn">退出登录</button>
+            </div>
+
+            <!-- 翻译渠道详情页 -->
+            <div class="settings-detail" id="apiSettings" style="display: none;">
+                <div class="detail-header">
+                    <button class="back-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <span class="detail-title">翻译渠道</span>
+                </div>
+                <div class="detail-content" id="channelsList">
+                    <div class="settings-menu-item" data-channel="tencent">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">腾讯云</span>
+                            <small class="menu-item-subtitle">TMT 机器翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelTencent">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-menu-item" data-channel="ali">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">阿里云</span>
+                            <small class="menu-item-subtitle">通用翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelAli">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-menu-item" data-channel="zhipu">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">智谱</span>
+                            <small class="menu-item-subtitle">大模型翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelZhipu">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-menu-item" data-channel="silicon">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">硅基流动</span>
+                            <small class="menu-item-subtitle">大模型翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelSilicon">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-menu-item" data-channel="deepl">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">DeepL</span>
+                            <small class="menu-item-subtitle">高质量翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelDeepL">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-menu-item" data-channel="microsoft">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">微软</span>
+                            <small class="menu-item-subtitle">Azure 翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelMicrosoft">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-menu-item" data-channel="gpt">
+                        <div class="menu-item-left">
+                            <span class="menu-item-title">GPT</span>
+                            <small class="menu-item-subtitle">OpenAI 翻译</small>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableChannelGPT">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelTencent" style="display:none;">
+                    <div class="detail-header">
+                        <button class="channel-back-button">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                        </button>
+                        <span class="detail-title">腾讯云配置</span>
+                    </div>
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">SecretId</label>
+                        <input type="text" class="setting-input" id="tencentSecretId" placeholder="AKID...">
+                    </div>
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">SecretKey</label>
+                        <input type="password" class="setting-input" id="tencentSecretKey" placeholder="32位密钥">
+                    </div>
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">ProjectId（可选）</label>
+                        <input type="number" class="setting-input" id="tencentProjectId" placeholder="0" value="0">
+                    </div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelAli" style="display:none;">
+                    <div class="detail-header">
+                        <button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button>
+                        <span class="detail-title">阿里云配置</span>
+                    </div>
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">AccessKeyId</label>
+                        <input type="text" class="setting-input" id="aliAccessKeyId">
+                    </div>
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">AccessKeySecret</label>
+                        <input type="password" class="setting-input" id="aliAccessKeySecret">
+                    </div>
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">Region</label>
+                        <input type="text" class="setting-input" id="aliRegion" placeholder="cn-shanghai">
+                    </div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelZhipu" style="display:none;">
+                    <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">智谱配置</span></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="zhipuApiKey"></div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelSilicon" style="display:none;">
+                    <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">硅基流动配置</span></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="siliconApiKey"></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Model</label><input type="text" class="setting-input" id="siliconModel" placeholder="eg. qwen-turbo"></div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelDeepL" style="display:none;">
+                    <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">DeepL 配置</span></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="deeplApiKey"></div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelMicrosoft" style="display:none;">
+                    <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">微软 Azure 配置</span></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Key</label><input type="password" class="setting-input" id="msKey"></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Endpoint</label><input type="text" class="setting-input" id="msEndpoint" placeholder="https://..."></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Region</label><input type="text" class="setting-input" id="msRegion" placeholder="eastasia"></div>
+                </div>
+
+                <div class="detail-content channel-detail" id="channelGPT" style="display:none;">
+                    <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">GPT 配置</span></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="gptApiKey"></div>
+                    <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Model</label><input type="text" class="setting-input" id="gptModel" placeholder="gpt-4o-mini"></div>
+                </div>
+            </div>
+
+            <!-- 翻译设置详情页 -->
+            <div class="settings-detail" id="translationSettings" style="display: none;">
+                <div class="detail-header">
+                    <button class="back-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <span class="detail-title">翻译设置</span>
+                </div>
+                <div class="detail-content">
+                    <div class="setting-item-compact setting-item-vertical">
+                        <label class="setting-label-title">目标语言</label>
+                        <select class="setting-select" id="defaultTargetLang">
+                            <option value="zh">简体中文</option>
+                            <option value="zh-TW">繁体中文</option>
+                            <option value="en">英语</option>
+                            <option value="ja">日语</option>
+                            <option value="ko">韩语</option>
+                            <option value="fr">法语</option>
+                            <option value="de">德语</option>
+                            <option value="es">西班牙语</option>
+                            <option value="ru">俄语</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">自动翻译</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoTranslate">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">启用腾讯云翻译</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enableTencentTranslate">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <small class="setting-hint">开启后，翻译结果将包含腾讯云翻译的内容（需先配置API密钥）</small>
+                </div>
+            </div>
+
+            <!-- 扩展功能详情页 -->
+            <div class="settings-detail" id="extensionSettings" style="display: none;">
+                <div class="detail-header">
+                    <button class="back-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <span class="detail-title">扩展功能</span>
+                </div>
+                <div class="detail-content">
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">划词翻译</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="selectionTranslate" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">快捷键翻译</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="shortcutTranslate" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">自动检测语言</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoDetectLanguage" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 显示设置详情页 -->
+            <div class="settings-detail" id="displaySettings" style="display: none;">
+                <div class="detail-header">
+                    <button class="back-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <span class="detail-title">显示设置</span>
+                </div>
+                <div class="detail-content">
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">显示音标</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showPhonetic" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-item-compact">
+                        <label class="setting-label-title">显示例句</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showExamples">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-detail" id="memorySettings" style="display: none;">
+                <div class="detail-header">
+                    <button class="back-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <span class="detail-title">背单词设置</span>
+                </div>
+                <div class="detail-content">
+                    <div class="setting-group">
+                        <label class="setting-label-title">复习间隔（小时）</label>
+                        <input type="number" id="memoryInterval" class="setting-input" min="1" max="24" value="3">
+                        <small class="setting-description">设置复习提醒的时间间隔，默认3小时</small>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-label-title">每次背诵数量</label>
+                        <input type="number" id="memoryWordsPerSession" class="setting-input" min="5" max="50" value="10">
+                        <small class="setting-description">每次背诵会显示的单词数量，默认10个</small>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-label-title">单词统计</label>
+                        <div class="memory-stats" id="memoryStats">
+                            <div class="stat-item">
+                                <span class="stat-label">总单词</span>
+                                <span class="stat-value" id="totalWords">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">待复习</span>
+                                <span class="stat-value" id="dueWords">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">已掌握</span>
+                                <span class="stat-value" id="masteredWords">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-divider"></div>
+
+                    <div class="setting-group">
+                        <label class="setting-label-title">数据同步</label>
+                        <div class="sync-info">
+                            <div class="sync-status" id="syncStatus">
+                                <span class="sync-label">本地翻译历史：</span>
+                                <span class="sync-count" id="localHistoryCount">加载中...</span>
+                            </div>
+                            <button class="sync-button" id="syncButton">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                </svg>
+                                <span>同步本地翻译历史到云端</span>
+                            </button>
+                            <small class="setting-description">将浏览器本地存储的翻译历史记录同步到 Supabase 云端数据库</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 配置文件（必须在 supabase-config.js 之前引入） -->
+    <script src="config.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="auth-service.js"></script>
+    <script src="database-service.js"></script>
+    <script src="translator-supabase.js"></script>
+</body>
+</html>
