@@ -293,3 +293,14 @@
   margin-bottom: 0;
 }
 
+/* 定义文本一行显示 */
+.definition-inline {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+  padding-left: 12px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+

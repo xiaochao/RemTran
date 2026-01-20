@@ -287,7 +287,7 @@ function updateTooltip(data) {
 
     html += '<div class="content-title">标准释义</div>';
 
-    // 词性和释义
+    // 词性和释义 - 同一词性的释义显示在一行
     dict.meanings.forEach(meaning => {
       html += '<div class="meaning-item">';
       html += `
@@ -296,19 +296,19 @@ function updateTooltip(data) {
         </div>
       `;
 
-      // 显示定义
-      meaning.definitions.forEach(def => {
-        html += `<div class="definition-text">${escapeHtml(def.definition)}</div>`;
+      // 将所有定义用顿号连接，显示在一行
+      const definitionsText = meaning.definitions.map(def => def.definition).join('、');
+      html += `<div class="definition-inline">${escapeHtml(definitionsText)}</div>`;
 
-        // 显示例句
-        if (def.example) {
-          html += `
-            <div class="example-section">
-              <div class="example-en">"${escapeHtml(def.example)}"</div>
-            </div>
-          `;
-        }
-      });
+      // 只显示第一个例句
+      const firstExample = meaning.definitions.find(def => def.example);
+      if (firstExample) {
+        html += `
+          <div class="example-section">
+            <div class="example-en">"${escapeHtml(firstExample.example)}"</div>
+          </div>
+        `;
+      }
 
       html += '</div>';
     });
