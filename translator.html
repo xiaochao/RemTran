@@ -274,6 +274,21 @@
                     </svg>
                 </div>
 
+                <div class="settings-menu-item" data-target="supabaseSettings">
+                    <div class="menu-item-left">
+                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M5 12.555a1.001 1.001 0 0 1 0-1.11l5-7.5a1.001 1.001 0 0 1 1.666 0l5 7.5a1.001 1.001 0 0 1 0 1.11l-5 7.5a1.001 1.001 0 0 1-1.666 0l-5-7.5z" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        <div class="menu-item-info">
+                            <span class="menu-item-title">云端同步</span>
+                            <small class="menu-item-subtitle" id="supabaseConfigStatus">未配置</small>
+                        </div>
+                    </div>
+                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
                 <div class="settings-divider"></div>
 
                 <div class="settings-menu-item">
@@ -627,6 +642,63 @@
                             <small class="setting-description">将浏览器本地存储的翻译历史记录同步到 Supabase 云端数据库</small>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- 云端同步配置详情页 -->
+            <div class="settings-detail" id="supabaseSettings" style="display: none;">
+                <div class="detail-header">
+                    <button class="back-button">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <span class="detail-title">云端同步配置</span>
+                </div>
+                <div class="detail-content">
+                    <div class="setting-group">
+                        <label class="setting-label-title">Supabase URL</label>
+                        <input type="text" class="setting-input" id="supabaseUrl" placeholder="https://your-project.supabase.co">
+                        <small class="setting-description">您的 Supabase 项目 URL，格式：https://xxx.supabase.co</small>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-label-title">Anon Key</label>
+                        <input type="password" class="setting-input" id="supabaseAnonKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                        <small class="setting-description">您的 Supabase 项目的公开密钥（anon key）</small>
+                    </div>
+
+                    <div class="setting-divider"></div>
+
+                    <div class="setting-group">
+                        <p class="setting-description" style="margin-bottom: 12px;">
+                            <strong>如何获取 Supabase 配置？</strong>
+                        </p>
+                        <ol class="setting-description" style="padding-left: 20px; margin: 0;">
+                            <li style="margin-bottom: 8px;">访问 <a href="https://supabase.com" target="_blank" style="color: #667eea;">supabase.com</a> 并登录/注册账号</li>
+                            <li style="margin-bottom: 8px;">创建一个新项目或选择现有项目</li>
+                            <li style="margin-bottom: 8px;">在项目设置中找到 API 配置</li>
+                            <li style="margin-bottom: 8px;">复制 Project URL 和 anon public key 到此处</li>
+                        </ol>
+                    </div>
+
+                    <button class="sync-button" id="saveSupabaseConfig" style="margin-top: 16px;">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <span>保存配置</span>
+                    </button>
+
+                    <div id="supabaseConfigMessage" style="margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; display: none;"></div>
+
+                    <button class="sync-button" id="testSupabaseConnection" style="margin-top: 12px; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>测试连接</span>
+                    </button>
+
+                    <div id="supabaseTestResult" style="margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; display: none;"></div>
                 </div>
             </div>
         </div>

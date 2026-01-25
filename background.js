@@ -10,18 +10,45 @@ try {
     console.error('无法加载 config.js，使用默认配置:', e);
 }
 
-// Supabase配置（从 config.js 读取，如果不存在则使用默认值）
-const SUPABASE_URL = (typeof CONFIG !== 'undefined' && CONFIG.supabase) ? CONFIG.supabase.url : 'https://hpowmoxpanobgutruvij.supabase.co';
-const SUPABASE_ANON_KEY = (typeof CONFIG !== 'undefined' && CONFIG.supabase) ? CONFIG.supabase.anonKey : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwb3dtb3hwYW5vYmd1dHJ1dmlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMDU5ODEsImV4cCI6MjA3Njg4MTk4MX0.rmSWwdYcwjmIy786Kt8HYhFI7bTybGTYkgAwzSQktzc';
-const SUPABASE_PROJECT_ID = (typeof CONFIG !== 'undefined' && CONFIG.supabase) ? CONFIG.supabase.projectId : 'hpowmoxpanobgutruvij';
+// 获取 Supabase 配置（从本地存储或 config.js 读取）
+async function getSupabaseConfig() {
+  try {
+    const result = await chrome.storage.local.get(['supabaseUrl', 'supabaseAnonKey']);
+    if (result.supabaseUrl && result.supabaseAnonKey) {
+      return {
+        url: result.supabaseUrl,
+        anonKey: result.supabaseAnonKey,
+        projectId: extractProjectId(result.supabaseUrl)
+      };
+    }
+  } catch (error) {
+    console.error('从本地存储读取 Supabase 配置失败:', error);
+  }
+
+  // 回退到 config.js 或默认值
+  return {
+    url: (typeof CONFIG !== 'undefined' && CONFIG.supabase) ? CONFIG.supabase.url : 'https://hpowmoxpanobgutruvij.supabase.co',
+    anonKey: (typeof CONFIG !== 'undefined' && CONFIG.supabase) ? CONFIG.supabase.anonKey : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwb3dtb3hwYW5vYmd1dHJ1dmlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMDU5ODEsImV4cCI6MjA3Njg4MTk4MX0.rmSWwdYcwjmIy786Kt8HYhFI7bTybGTYkgAwzSQktzc',
+    projectId: (typeof CONFIG !== 'undefined' && CONFIG.supabase) ? CONFIG.supabase.projectId : 'hpowmoxpanobgutruvij'
+  };
+}
+
+// 从 URL 中提取项目 ID
+function extractProjectId(url) {
+  try {
+    const match = url.match(/https:\/\/([^.]+)\.supabase\.co/);
+    return match ? match[1] : 'hpowmoxpanobgutruvij';
+  } catch (error) {
+    return 'hpowmoxpanobgutruvij';
+  }
+}
 
 // 从 localStorage 获取 Supabase session
 async function getSupabaseSession() {
   try {
-    // Supabase 的 localStorage 键名
-    const storageKey = `sb-${SUPABASE_PROJECT_ID}-auth-token`;
+    const config = await getSupabaseConfig();
+    const storageKey = `sb-${config.projectId}-auth-token`;
 
-    // 尝试从 chrome.storage.local 获取（如果之前同步过）
     const result = await chrome.storage.local.get(storageKey);
     if (result[storageKey]) {
       return JSON.parse(result[storageKey]);
@@ -43,11 +70,13 @@ async function saveToSupabase(original, translation, sourceLang, targetLang) {
       return { success: false, reason: 'not_logged_in' };
     }
 
+    const config = await getSupabaseConfig();
+
     // 调用 Supabase REST API 保存翻译历史
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/translation_history`, {
+    const response = await fetch(`${config.url}/rest/v1/translation_history`, {
       method: 'POST',
       headers: {
-        'apikey': SUPABASE_ANON_KEY,
+        'apikey': config.anonKey,
         'Authorization': `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'

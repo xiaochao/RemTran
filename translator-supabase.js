@@ -1,5 +1,90 @@
 // 使用 Supabase 的翻译器逻辑
+
+// 全局函数：打开 Supabase 配置页面（定义在 DOMContentLoaded 外部，确保可以随时调用）
+window.openSupabaseSettings = function() {
+    console.log('=== openSupabaseSettings called ===');
+    console.log('Current URL:', window.location.href);
+
+    // 等待DOM完全加载
+    if (document.readyState !== 'complete') {
+        console.log('DOM not ready, waiting...');
+        setTimeout(() => window.openSupabaseSettings(), 200);
+        return;
+    }
+
+    const navTabs = document.querySelectorAll('.nav-tab');
+    console.log('Found nav tabs:', navTabs.length);
+
+    if (navTabs.length === 0) {
+        console.error('No nav tabs found, page may not be fully loaded');
+        setTimeout(() => window.openSupabaseSettings(), 500);
+        return;
+    }
+
+    if (navTabs.length < 3) {
+        console.error('Not enough nav tabs found. Found:', navTabs.length);
+        alert('页面未完全加载，正在重新尝试...');
+        setTimeout(() => window.openSupabaseSettings(), 500);
+        return;
+    }
+
+    // 直接操作 DOM 切换到设置页面，不依赖 click 事件
+    console.log('Manually switching to settings page');
+
+    // 移除所有 active 类
+    navTabs.forEach(t => t.classList.remove('active'));
+    // 给第3个标签添加 active 类
+    navTabs[2].classList.add('active');
+
+    // 获取页面元素
+    const mainContent = document.querySelector('.translator-container')?.parentElement;
+    const historyPage = document.getElementById('historyPage');
+    const settingsPage = document.getElementById('settingsPage');
+
+    console.log('Page elements:', { mainContent: !!mainContent, historyPage: !!historyPage, settingsPage: !!settingsPage });
+
+    if (!mainContent || !historyPage || !settingsPage) {
+        console.error('Page elements not found');
+        setTimeout(() => window.openSupabaseSettings(), 300);
+        return;
+    }
+
+    // 切换页面显示
+    mainContent.style.display = 'none';
+    historyPage.style.display = 'none';
+    settingsPage.style.display = 'block';
+
+    console.log('Switched to settings page');
+
+    // 等待页面切换后，点击 Supabase 配置菜单
+    setTimeout(() => {
+        const supabaseMenuItem = document.querySelector('[data-target="supabaseSettings"]');
+        console.log('Looking for supabase menu item...');
+
+        if (supabaseMenuItem) {
+            console.log('Found supabase menu item, clicking...');
+            // 直接触发点击
+            supabaseMenuItem.click();
+            console.log('✓ Successfully clicked supabase menu item');
+        } else {
+            console.error('Supabase settings menu not found');
+            console.log('Available menu items:');
+            document.querySelectorAll('[data-target]').forEach((item, index) => {
+                console.log(`  [${index}]`, item.getAttribute('data-target'), ':', item.textContent?.trim());
+            });
+            alert('无法找到"云端同步"配置选项\n\n请手动操作：\n1. 点击"设置"标签\n2. 点击"云端同步"选项');
+        }
+    }, 300);
+};
+
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('=== DOMContentLoaded fired ===');
+    console.log('Current document readyState:', document.readyState);
+
+    // 声明全局变量
+    let currentUser = null;
+    let memoryIntervalInput = null;
+    let memoryWordsPerSessionInput = null;
 
     // 添加加载遮罩
     const loadingOverlay = document.createElement('div');
@@ -132,15 +217,271 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.head.appendChild(style);
     }
 
-    // 检查登录状态（带超时）
-    const SUPABASE_TIMEOUT = 10000; // 10秒超时
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('连接超时')), SUPABASE_TIMEOUT);
+    // ===== 首先绑定导航事件（确保在任何 return 之前执行） =====
+    console.log('=== Getting DOM elements and binding navigation events FIRST ===');
+
+    const navTabs = document.querySelectorAll('.nav-tab');
+    const sourceText = document.getElementById('sourceText');
+    const charCount = document.getElementById('charCount');
+    const translateBtn = document.getElementById('translateBtn');
+    const resultPanel = document.getElementById('resultPanel');
+    const translationResult = document.getElementById('translationResult');
+    const sourceLanguage = document.getElementById('sourceLanguage');
+    const targetLanguage = document.getElementById('targetLanguage');
+
+    const translatorContainer = document.querySelector('.translator-container');
+    const mainContent = translatorContainer ? translatorContainer.parentElement : null;
+    const historyPage = document.getElementById('historyPage');
+    const settingsPage = document.getElementById('settingsPage');
+    const historyList = document.getElementById('historyList');
+
+    console.log('Page elements found:', {
+        navTabs: navTabs.length,
+        mainContent: !!mainContent,
+        historyPage: !!historyPage,
+        settingsPage: !!settingsPage
     });
 
+    // 绑定导航事件
+    console.log('Attaching navigation event listeners...');
+    navTabs.forEach((tab, index) => {
+        tab.addEventListener('click', function(e) {
+            console.log('Nav tab clicked:', index, this.querySelector('span')?.textContent);
+            navTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            const tabText = this.querySelector('span')?.textContent;
+
+            if (!mainContent || !historyPage || !settingsPage) {
+                console.error('Page elements not available!');
+                return;
+            }
+
+            if (tabText === '翻译') {
+                mainContent.style.display = 'block';
+                historyPage.style.display = 'none';
+                settingsPage.style.display = 'none';
+            } else if (tabText === '历史') {
+                mainContent.style.display = 'none';
+                historyPage.style.display = 'block';
+                settingsPage.style.display = 'none';
+                loadHistoryFromDatabase();
+            } else if (tabText === '设置') {
+                mainContent.style.display = 'none';
+                historyPage.style.display = 'none';
+                settingsPage.style.display = 'block';
+            }
+        });
+    });
+    console.log('✓ Navigation event listeners attached successfully');
+
+    // 验证加载遮罩是否需要移除
+    const loadingOverlayCheck = document.getElementById('translator-loading-overlay');
+    console.log('Loading overlay check:', {
+        exists: !!loadingOverlayCheck,
+        isVisible: loadingOverlayCheck ? loadingOverlayCheck.style.display !== 'none' : false
+    });
+
+    // 添加全局测试函数
+    window.testNavigation = function() {
+        console.log('=== Testing Navigation ===');
+        const tabs = document.querySelectorAll('.nav-tab');
+        console.log('Found tabs:', tabs.length);
+        const overlay = document.getElementById('translator-loading-overlay');
+        console.log('Loading overlay exists:', !!overlay);
+        console.log('End of test.');
+    };
+    console.log('✓ Test function available: window.testNavigation()');
+
+    // ===== 设置页面二级导航（也需要提前绑定） =====
+    console.log('Binding settings page menu listeners...');
+    const mainSettings = document.getElementById('mainSettings');
+    const settingsMenuItems = document.querySelectorAll('.settings-menu-item[data-target]');
+    const settingsDetails = document.querySelectorAll('.settings-detail');
+    const backButtons = document.querySelectorAll('.back-button');
+
+    console.log('Found settings menu items:', settingsMenuItems.length);
+
+    // 点击设置菜单项，显示详情页
+    settingsMenuItems.forEach(item => {
+        item.addEventListener('click', function() {
+            console.log('Settings menu item clicked:', this.dataset.target);
+            const targetId = this.dataset.target;
+            const targetDetail = document.getElementById(targetId);
+
+            if (targetDetail && mainSettings) {
+                console.log('Showing detail:', targetId);
+                mainSettings.style.display = 'none';
+                targetDetail.style.display = 'block';
+
+                // 如果打开背单词设置，加载统计数据
+                if (targetId === 'memorySettings') {
+                    if (typeof loadMemoryStats === 'function') loadMemoryStats();
+                    if (typeof loadSettings === 'function') loadSettings();
+                }
+            }
+        });
+    });
+
+    // 点击返回按钮，返回主设置页
+    backButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('Back button clicked');
+            settingsDetails.forEach(detail => {
+                detail.style.display = 'none';
+            });
+            if (mainSettings) {
+                mainSettings.style.display = 'block';
+            }
+        });
+    });
+    console.log('✓ Settings page menu listeners attached');
+
+    // 检查登录状态（带超时）
+    const SUPABASE_TIMEOUT = 10000; // 10秒超时
     let sessionResult; // 在外部声明以便后续代码使用
 
+    console.log('=== Starting authentication check ===');
+
     try {
+        // 首先检查 Supabase 配置
+        console.log('Checking Supabase configuration...');
+        const hasSupabase = await window.SupabaseConfigManager.hasConfig();
+        console.log('Has Supabase config:', hasSupabase);
+
+        if (!hasSupabase) {
+            // 显示配置 Supabase 的界面
+            loadingOverlay.innerHTML = `
+                <div style="text-align: center; color: white; padding: 20px; max-width: 400px;">
+                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 20px;">
+                        <path d="M5 12.555a1.001 1.001 0 0 1 0-1.11l5-7.5a1.001 1.001 0 0 1 1.666 0l5 7.5a1.001 1.001 0 0 1 0 1.11l-5 7.5a1.001 1.001 0 0 1-1.666 0l-5-7.5z"/>
+                    </svg>
+                    <h2 style="font-size: 24px; margin-bottom: 10px;">欢迎使用拾念</h2>
+                    <p style="font-size: 16px; margin-bottom: 20px; opacity: 0.9;">首次使用需要配置云端同步服务</p>
+                    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px; text-align: left; background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
+                        <p style="margin: 0 0 12px 0;"><strong>配置 Supabase 可以：</strong></p>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li style="margin-bottom: 6px;">在多设备间同步翻译历史</li>
+                            <li style="margin-bottom: 6px;">云端备份学习记录</li>
+                            <li style="margin-bottom: 6px;">支持账号登录和数据持久化</li>
+                        </ul>
+                    </div>
+                    <button id="skipSupabaseConfig" class="config-button" data-style="transparent">
+                        稍后配置
+                    </button>
+                    <button id="gotoSupabaseConfig" class="config-button" data-style="filled">
+                        立即配置
+                    </button>
+                </div>
+            `;
+
+            // 添加样式
+            const style = document.createElement('style');
+            style.textContent = `
+                .config-button {
+                    padding: 12px 32px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                }
+                .config-button[data-style="transparent"] {
+                    background: transparent;
+                    color: white;
+                    border: 2px solid white;
+                    margin-right: 10px;
+                }
+                .config-button[data-style="filled"] {
+                    background: white;
+                    color: #667eea;
+                    border: none;
+                }
+                .config-button:hover {
+                    transform: scale(1.05);
+                }
+            `;
+            document.head.appendChild(style);
+
+            // 绑定按钮事件
+            document.getElementById('skipSupabaseConfig').addEventListener('click', () => {
+                // 移除加载遮罩，继续使用本地模式
+                if (loadingOverlay.parentNode) {
+                    loadingOverlay.parentNode.removeChild(loadingOverlay);
+                }
+                // 不需要登录，直接显示主界面
+                currentUser = null;
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.style.display = 'none';
+                }
+                const currentUserElement = document.getElementById('currentUser');
+                if (currentUserElement) {
+                    currentUserElement.textContent = '未登录';
+                }
+                // 这些函数会在稍后定义并调用
+                setTimeout(() => {
+                    if (typeof loadSettings === 'function') loadSettings();
+                    if (typeof loadApiSettings === 'function') loadApiSettings();
+                    if (typeof loadChannelSettings === 'function') loadChannelSettings();
+                }, 100);
+                return;
+            });
+
+            document.getElementById('gotoSupabaseConfig').addEventListener('click', () => {
+                console.log('gotoSupabaseConfig button clicked');
+
+                // 移除加载遮罩
+                if (loadingOverlay.parentNode) {
+                    loadingOverlay.parentNode.removeChild(loadingOverlay);
+                    console.log('Loading overlay removed');
+                }
+
+                // 不需要登录，直接显示主界面
+                currentUser = null;
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.style.display = 'none';
+                }
+                const currentUserElement = document.getElementById('currentUser');
+                if (currentUserElement) {
+                    currentUserElement.textContent = '未登录';
+                }
+
+                // 等待页面完全加载后打开设置
+                setTimeout(() => {
+                    console.log('Attempting to open Supabase settings...');
+                    console.log('window.openSupabaseSettings type:', typeof window.openSupabaseSettings);
+                    console.log('window.openSupabaseSettings:', window.openSupabaseSettings);
+
+                    if (typeof window.openSupabaseSettings === 'function') {
+                        console.log('Calling openSupabaseSettings...');
+                        window.openSupabaseSettings();
+                    } else {
+                        console.error('openSupabaseSettings function not available');
+                        alert('页面加载中，请手动进入设置页面配置\n步骤：点击"设置"标签 → 点击"云端同步"选项');
+                    }
+                }, 800);
+
+                // 加载设置
+                setTimeout(() => {
+                    if (typeof loadSettings === 'function') loadSettings();
+                    if (typeof loadApiSettings === 'function') loadApiSettings();
+                    if (typeof loadChannelSettings === 'function') loadChannelSettings();
+                }, 100);
+
+                return;
+            });
+
+            return; // 停止执行，等待用户操作
+        }
+
+        // 创建超时 Promise（只在需要时创建）
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('连接超时')), SUPABASE_TIMEOUT);
+        });
+
+        // 检查登录状态
         sessionResult = await Promise.race([
             AuthService.getSession(),
             timeoutPromise
@@ -153,8 +494,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         // 移除加载遮罩
+        console.log('Removing loading overlay after successful auth...');
         if (loadingOverlay.parentNode) {
             loadingOverlay.parentNode.removeChild(loadingOverlay);
+            console.log('✓ Loading overlay removed successfully');
+        } else {
+            console.log('⚠ Loading overlay already removed or not attached to DOM');
         }
     } catch (error) {
         console.error('登录检查失败:', error);
@@ -181,35 +526,43 @@ document.addEventListener('DOMContentLoaded', async function() {
                         • Supabase 服务暂时不可用<br>
                         • 防火墙或代理设置问题
                     </div>
-                    <button onclick="location.reload()" style="
-                        background: white;
-                        color: #f5576c;
-                        border: none;
-                        padding: 12px 32px;
-                        border-radius: 8px;
-                        font-size: 16px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: transform 0.2s;
-                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <button id="reloadPageBtn" class="error-action-btn">
                         重新加载
                     </button>
-                    <button onclick="window.location.href='index.html'" style="
-                        background: transparent;
-                        color: white;
-                        border: 2px solid white;
-                        padding: 12px 32px;
-                        border-radius: 8px;
-                        font-size: 16px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: transform 0.2s;
-                        margin-left: 10px;
-                    " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <button id="backToLoginBtn" class="error-action-btn" data-style="outline">
                         返回登录
                     </button>
                 </div>
             `;
+
+            // 添加错误按钮样式和事件
+            const errorStyle = document.createElement('style');
+            errorStyle.textContent = `
+                .error-action-btn {
+                    background: white;
+                    color: #f5576c;
+                    border: none;
+                    padding: 12px 32px;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                    margin: 0 5px;
+                }
+                .error-action-btn[data-style="outline"] {
+                    background: transparent;
+                    color: white;
+                    border: 2px solid white;
+                }
+                .error-action-btn:hover {
+                    transform: scale(1.05);
+                }
+            `;
+            document.head.appendChild(errorStyle);
+
+            document.getElementById('reloadPageBtn').addEventListener('click', () => location.reload());
+            document.getElementById('backToLoginBtn').addEventListener('click', () => window.location.href = 'index.html');
             return; // 停止执行
         } else {
             // 其他错误也返回登录页
@@ -232,7 +585,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 获取当前用户信息
     const userResult = await AuthService.getCurrentUser();
-    let currentUser = null;
 
     if (userResult.success && userResult.user) {
         currentUser = userResult.user;
@@ -261,46 +613,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
-    // 获取DOM元素
-    const navTabs = document.querySelectorAll('.nav-tab');
-    const sourceText = document.getElementById('sourceText');
-    const charCount = document.getElementById('charCount');
-    const translateBtn = document.getElementById('translateBtn');
-    const resultPanel = document.getElementById('resultPanel');
-    const translationResult = document.getElementById('translationResult');
-    const sourceLanguage = document.getElementById('sourceLanguage');
-    const targetLanguage = document.getElementById('targetLanguage');
-
-    // 页面元素
-    const mainContent = document.querySelector('.translator-container').parentElement;
-    const historyPage = document.getElementById('historyPage');
-    const settingsPage = document.getElementById('settingsPage');
-    const historyList = document.getElementById('historyList');
-
-    // ===== 导航切换 =====
-    navTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            navTabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-
-            const tabText = this.querySelector('span').textContent;
-
-            if (tabText === '翻译') {
-                mainContent.style.display = 'block';
-                historyPage.style.display = 'none';
-                settingsPage.style.display = 'none';
-            } else if (tabText === '历史') {
-                mainContent.style.display = 'none';
-                historyPage.style.display = 'block';
-                settingsPage.style.display = 'none';
-                loadHistoryFromDatabase();
-            } else if (tabText === '设置') {
-                mainContent.style.display = 'none';
-                historyPage.style.display = 'none';
-                settingsPage.style.display = 'block';
-            }
-        });
-    });
+    console.log('✓ All initialization complete. Navigation events bound successfully.');
 
     // ===== 字符计数 =====
     sourceText.addEventListener('input', function() {
@@ -335,10 +648,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
 
             if (response.success) {
-                // 显示翻译结果
-                const translatedText = response.data.translation;
-                translationResult.textContent = translatedText;
+                // 显示翻译结果（完整格式，与弹窗翻译一致）
+                displayTranslationResult(response.data);
                 resultPanel.style.display = 'block';
+
+                // 获取主翻译文本
+                const translatedText = response.data.translation;
 
                 // 判断是否应该保存到历史记录
                 const shouldSave = shouldSaveTranslationRecord(
@@ -363,19 +678,29 @@ document.addEventListener('DOMContentLoaded', async function() {
                         const historyList = history.translationHistory || [];
 
                         // 检查是否已存在
-                        const existingIndex = historyList.findIndex(item => item.original === text);
+                        const existingIndex = historyList.findIndex(item => item.original === text || item.text === text);
                         const newRecord = {
+                            original: text,
                             text: text,
                             translation: translatedText,
+                            translated_text: translatedText,
                             from: sourceLanguage.options[sourceLanguage.selectedIndex].text,
                             to: targetLanguage.options[targetLanguage.selectedIndex].text,
+                            source_language: sourceLanguage.options[sourceLanguage.selectedIndex].text,
+                            target_language: targetLanguage.options[targetLanguage.selectedIndex].text,
+                            detectedLanguage: response.data.detectedLanguage || sourceLanguage.value,
+                            dictionaryData: response.data.dictionaryData || null,
+                            translations: response.data.translations || [],
                             timestamp: Date.now(),
                             synced: saveResult.success,
-                            syncStatus: saveResult.success ? 'synced' : 'local_only'
+                            syncStatus: saveResult.success ? 'synced' : 'local_only',
+                            count: 1
                         };
 
                         if (existingIndex !== -1) {
                             // 更新现有记录
+                            const existing = historyList[existingIndex];
+                            newRecord.count = (existing.count || 1) + 1;
                             historyList[existingIndex] = newRecord;
                         } else {
                             // 添加新记录到开头
@@ -539,13 +864,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             .map(record => ({
                 ...record,
                 created_at: new Date(record.timestamp).toISOString(),
-                source_text: record.original,
-                translated_text: record.translation,
-                source_language: getLanguageName(record.detectedLanguage || 'en'),
-                target_language: getLanguageName('zh'),
+                source_text: record.original || record.text || record.source_text,
+                translated_text: record.translation || record.translated_text,
+                source_language: getLanguageName(record.detectedLanguage || record.source_language || 'en'),
+                target_language: getLanguageName(record.target_language || 'zh'),
                 synced: false,
                 syncStatus: 'local_only',
-                count: record.count || 1
+                count: record.count || 1,
+                // 保留完整的翻译数据
+                dictionaryData: record.dictionaryData || null,
+                translations: record.translations || [],
+                detectedLanguage: record.detectedLanguage || 'en'
             }));
 
         const merged = [...cloudRecords, ...localOnlyRecords];
@@ -556,11 +885,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             const key = (rec.source_text || '').trim().toLowerCase();
             const existing = groupedMap.get(key);
             if (!existing) {
-                groupedMap.set(key, { ...rec, count: rec.count || 1 });
+                // 保留完整的翻译数据结构
+                groupedMap.set(key, {
+                    ...rec,
+                    count: rec.count || 1,
+                    dictionaryData: rec.dictionaryData || null,
+                    translations: rec.translations || [],
+                    detectedLanguage: rec.detectedLanguage || 'en'
+                });
             } else {
                 const nextCount = (existing.count || 1) + (rec.count || 1);
                 const newer = new Date(rec.created_at) > new Date(existing.created_at) ? rec : existing;
-                groupedMap.set(key, { ...newer, count: nextCount });
+                // 合并时保留完整的翻译数据
+                groupedMap.set(key, {
+                    ...newer,
+                    count: nextCount,
+                    dictionaryData: newer.dictionaryData || existing.dictionaryData || null,
+                    translations: newer.translations || existing.translations || [],
+                    detectedLanguage: newer.detectedLanguage || existing.detectedLanguage || 'en'
+                });
             }
         }
 
@@ -700,7 +1043,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 填充内容
         sourceText.value = record.source_text;
         charCount.textContent = record.source_text.length;
-        translationResult.textContent = record.translated_text;
+
+        // 如果历史记录包含完整的翻译数据，使用完整格式显示
+        if (record.dictionaryData || (record.translations && record.translations.length > 0)) {
+            displayTranslationResult({
+                original: record.source_text,
+                translation: record.translated_text,
+                translations: record.translations || [],
+                dictionaryData: record.dictionaryData || null,
+                detectedLanguage: record.detectedLanguage || 'en'
+            });
+        } else {
+            // 否则使用简单的文本显示
+            translationResult.textContent = record.translated_text;
+        }
+
         resultPanel.style.display = 'block';
         translateBtn.disabled = false;
     }
@@ -726,12 +1083,142 @@ document.addEventListener('DOMContentLoaded', async function() {
         return div.innerHTML;
     }
 
+    // ===== 显示翻译结果（与弹窗翻译格式一致） =====
+    function displayTranslationResult(data) {
+        // 检查是否有词典数据
+        const hasDictionaryData = data.dictionaryData && data.dictionaryData.meanings && data.dictionaryData.meanings.length > 0;
+
+        let html = '';
+
+        // 如果有词典数据，显示词典模式
+        if (hasDictionaryData) {
+            const dict = data.dictionaryData;
+
+            // 音标区域
+            if (dict.phonetics && (dict.phonetics.us || dict.phonetics.uk)) {
+                html += '<div class="result-phonetics" style="margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap;">';
+
+                if (dict.phonetics.us) {
+                    const usAudio = dict.phonetics.audio.us ?
+                        `<button class="phonetic-audio-btn" data-audio="${escapeHtml(dict.phonetics.audio.us)}" style="background:none;border:none;cursor:pointer;padding:4px;font-size:16px;line-height:1;" title="发音">🔊</button>` : '';
+                    html += `<div style="display:flex;align-items:center;gap:6px;"><span style="color:#666;font-size:13px;">US</span><span style="color:#333;font-size:14px;">/${escapeHtml(dict.phonetics.us)}/</span>${usAudio}</div>`;
+                }
+
+                if (dict.phonetics.uk) {
+                    const ukAudio = dict.phonetics.audio.uk ?
+                        `<button class="phonetic-audio-btn" data-audio="${escapeHtml(dict.phonetics.audio.uk)}" style="background:none;border:none;cursor:pointer;padding:4px;font-size:16px;line-height:1;" title="发音">🔊</button>` : '';
+                    html += `<div style="display:flex;align-items:center;gap:6px;"><span style="color:#666;font-size:13px;">UK</span><span style="color:#333;font-size:14px;">/${escapeHtml(dict.phonetics.uk)}/</span>${ukAudio}</div>`;
+                }
+
+                html += '</div>';
+            }
+
+            // 如果有多个翻译结果，显示所有翻译
+            if (data.translations && data.translations.length > 0) {
+                html += '<div style="margin-bottom: 12px;"><div style="color: #666; font-size: 13px; margin-bottom: 6px;">翻译</div><div style="display: flex; flex-direction: column; gap: 4px;">';
+
+                data.translations.forEach((trans) => {
+                    const sourceName = trans.source === 'dictionary' ? '词典' : trans.source === 'tencent' ? '腾讯云' : trans.source;
+                    html += `<div style="display:flex;align-items:center;gap:8px;"><span style="color:#999;font-size:12px;">[${escapeHtml(sourceName)}]</span><span style="color:#333;font-size:15px;">${escapeHtml(trans.text)}</span></div>`;
+                });
+
+                html += '</div></div>';
+            }
+
+            // 标准释义
+            html += '<div style="color: #666; font-size: 13px; margin-bottom: 8px;">标准释义</div>';
+
+            // 词性和释义 - 同一词性的释义显示在一行
+            dict.meanings.forEach(meaning => {
+                html += '<div style="margin-bottom: 12px;">';
+                html += `<div style="margin-bottom: 4px;"><span style="color: #667eea; font-weight: 500; font-size: 14px;">${escapeHtml(meaning.partOfSpeech)}.</span></div>`;
+
+                // 将所有定义用顿号连接，显示在一行
+                const definitionsText = meaning.definitions.map(def => def.definition).join('、');
+                html += `<div style="color: #333; font-size: 14px; line-height: 1.6;">${escapeHtml(definitionsText)}</div>`;
+
+                // 只显示第一个例句
+                const firstExample = meaning.definitions.find(def => def.example);
+                if (firstExample) {
+                    html += `<div style="margin-top: 6px;"><div style="color: #666; font-size: 13px; font-style: italic;">"${escapeHtml(firstExample.example)}"</div></div>`;
+                }
+
+                html += '</div>';
+            });
+        } else {
+            // 简单翻译模式
+            // 显示所有翻译结果
+            if (data.translations && data.translations.length > 0) {
+                html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+
+                data.translations.forEach((trans) => {
+                    const sourceName = trans.source === 'dictionary' ? '词典' : trans.source === 'tencent' ? '腾讯云' : trans.source;
+                    html += `<div style="display:flex;align-items:center;gap:8px;"><span style="color:#999;font-size:12px;">[${escapeHtml(sourceName)}]</span><span style="color:#333;font-size:15px;">${escapeHtml(trans.text)}</span></div>`;
+                });
+
+                html += '</div>';
+            } else if (data.translation) {
+                // 兼容旧格式
+                html += `<div style="color: #333; font-size: 15px;">${escapeHtml(data.translation)}</div>`;
+            }
+
+            if (data.detectedLanguage) {
+                html += `<div style="color: #999; font-size: 12px; margin-top: 8px;">检测语言: ${data.detectedLanguage}</div>`;
+            }
+        }
+
+        translationResult.innerHTML = html;
+
+        // 绑定发音按钮事件
+        const audioButtons = translationResult.querySelectorAll('.phonetic-audio-btn');
+        audioButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const audioUrl = e.currentTarget.getAttribute('data-audio');
+                if (audioUrl) {
+                    playAudio(audioUrl);
+                }
+            });
+        });
+    }
+
+    // 播放音频
+    let currentAudioElement = null;
+    function playAudio(url) {
+        // 停止当前播放的音频
+        if (currentAudioElement) {
+            currentAudioElement.pause();
+            currentAudioElement = null;
+        }
+
+        // 创建新的音频元素
+        currentAudioElement = new Audio(url);
+        currentAudioElement.play().catch(error => {
+            console.error('播放音频失败:', error);
+        });
+    }
+
     // ===== 复制功能 =====
     const copyBtn = document.querySelector('.action-btn[title="复制"]');
     if (copyBtn) {
         copyBtn.addEventListener('click', function() {
-            const text = translationResult.textContent;
-            navigator.clipboard.writeText(text).then(() => {
+            // 从翻译结果中提取纯文本，排除标签和额外信息
+            let textToCopy = '';
+            const sourceElements = translationResult.querySelectorAll('span.translation-text');
+            if (sourceElements.length > 0) {
+                // 如果有多个翻译结果，复制所有翻译（用分号分隔）
+                textToCopy = Array.from(sourceElements).map(el => el.textContent).join('；');
+            } else {
+                // 否则复制所有文本内容
+                textToCopy = translationResult.textContent
+                    .replace(/\[.*?\]/g, '') // 移除来源标签如 [腾讯云]
+                    .replace(/US|UK/g, '') // 移除音标标签
+                    .replace(/检测语言:.*/g, '') // 移除语言检测信息
+                    .replace(/标准释义|翻译/g, '') // 移除标题
+                    .replace(/[""]/g, '') // 移除引号
+                    .trim();
+            }
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
                 const originalHTML = this.innerHTML;
                 this.innerHTML = '✓';
                 this.style.color = '#22c55e';
@@ -751,12 +1238,28 @@ document.addEventListener('DOMContentLoaded', async function() {
     const speakBtn = document.querySelector('.action-btn[title="朗读"]');
     if (speakBtn) {
         speakBtn.addEventListener('click', function() {
-            const text = translationResult.textContent;
+            // 从翻译结果中提取纯文本用于朗读
+            let textToSpeak = '';
+            const sourceElements = translationResult.querySelectorAll('span.translation-text');
+            if (sourceElements.length > 0) {
+                // 如果有多个翻译结果，朗读第一个翻译
+                textToSpeak = sourceElements[0].textContent;
+            } else {
+                // 否则朗读所有文本内容，但排除标签
+                textToSpeak = translationResult.textContent
+                    .replace(/\[.*?\]/g, '') // 移除来源标签
+                    .replace(/US|UK/g, '') // 移除音标标签
+                    .replace(/检测语言:.*/g, '') // 移除语言检测信息
+                    .replace(/标准释义|翻译/g, '') // 移除标题
+                    .replace(/[""]/g, '') // 移除引号
+                    .replace(/\/.*?\//g, '') // 移除音标
+                    .trim();
+            }
 
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
 
-                const utterance = new SpeechSynthesisUtterance(text);
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = targetLanguage.value === 'zh' ? 'zh-CN' : 'en-US';
                 utterance.rate = 0.9;
 
@@ -802,22 +1305,22 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // ===== 设置页面功能 =====
 
-    // 设置项元素
-    const defaultTargetLangSelect = document.getElementById('defaultTargetLang');
-    const autoTranslateCheckbox = document.getElementById('autoTranslate');
-    const enableTencentTranslateCheckbox = document.getElementById('enableTencentTranslate');
-    const selectionTranslateCheckbox = document.getElementById('selectionTranslate');
-    const shortcutTranslateCheckbox = document.getElementById('shortcutTranslate');
-    const autoDetectLanguageCheckbox = document.getElementById('autoDetectLanguage');
-    const showPhoneticCheckbox = document.getElementById('showPhonetic');
-    const showExamplesCheckbox = document.getElementById('showExamples');
-
     // 从数据库加载设置
     async function loadSettings() {
         const result = await DatabaseService.getUserSettings();
 
         if (result.success && result.data) {
             const settings = result.data;
+
+            // 获取DOM元素（每次调用时重新获取，确保元素存在）
+            const defaultTargetLangSelect = document.getElementById('defaultTargetLang');
+            const autoTranslateCheckbox = document.getElementById('autoTranslate');
+            const enableTencentTranslateCheckbox = document.getElementById('enableTencentTranslate');
+            const selectionTranslateCheckbox = document.getElementById('selectionTranslate');
+            const shortcutTranslateCheckbox = document.getElementById('shortcutTranslate');
+            const autoDetectLanguageCheckbox = document.getElementById('autoDetectLanguage');
+            const showPhoneticCheckbox = document.getElementById('showPhonetic');
+            const showExamplesCheckbox = document.getElementById('showExamples');
 
             // 应用设置到UI
             if (defaultTargetLangSelect) {
@@ -844,6 +1347,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (showExamplesCheckbox) {
                 showExamplesCheckbox.checked = settings.show_examples || false;
             }
+
+            // 获取背单词设置的DOM元素
+            if (!memoryIntervalInput) memoryIntervalInput = document.getElementById('memoryInterval');
+            if (!memoryWordsPerSessionInput) memoryWordsPerSessionInput = document.getElementById('memoryWordsPerSession');
+
             if (memoryIntervalInput) {
                 memoryIntervalInput.value = settings.memory_interval_hours || 3;
             }
@@ -878,6 +1386,38 @@ document.addEventListener('DOMContentLoaded', async function() {
                 countElement.textContent = '获取失败';
             }
         }
+    }
+
+    // 绑定背单词设置的事件监听器
+    if (!memoryIntervalInput) memoryIntervalInput = document.getElementById('memoryInterval');
+    if (!memoryWordsPerSessionInput) memoryWordsPerSessionInput = document.getElementById('memoryWordsPerSession');
+
+    if (memoryIntervalInput) {
+        memoryIntervalInput.addEventListener('change', async function() {
+            const value = parseInt(this.value);
+            if (value >= 1 && value <= 24) {
+                const result = await DatabaseService.updateUserSettings({
+                    memory_interval_hours: value
+                });
+                if (result.success) {
+                    console.log('背单词间隔已更新');
+                }
+            }
+        });
+    }
+
+    if (memoryWordsPerSessionInput) {
+        memoryWordsPerSessionInput.addEventListener('change', async function() {
+            const value = parseInt(this.value);
+            if (value >= 5 && value <= 50) {
+                const result = await DatabaseService.updateUserSettings({
+                    memory_words_per_session: value
+                });
+                if (result.success) {
+                    console.log('每次背诵数量已更新');
+                }
+            }
+        });
     }
 
     // 同步本地翻译历史到云端
@@ -1045,38 +1585,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         showExamplesCheckbox.addEventListener('change', saveSettings);
     }
 
-    // ===== 背单词设置 =====
-    const memoryIntervalInput = document.getElementById('memoryInterval');
-    const memoryWordsPerSessionInput = document.getElementById('memoryWordsPerSession');
-
-    if (memoryIntervalInput) {
-        memoryIntervalInput.addEventListener('change', async function() {
-            const value = parseInt(this.value);
-            if (value >= 1 && value <= 24) {
-                const result = await DatabaseService.updateUserSettings({
-                    memory_interval_hours: value
-                });
-                if (result.success) {
-                    console.log('背单词间隔已更新');
-                }
-            }
-        });
-    }
-
-    if (memoryWordsPerSessionInput) {
-        memoryWordsPerSessionInput.addEventListener('change', async function() {
-            const value = parseInt(this.value);
-            if (value >= 5 && value <= 50) {
-                const result = await DatabaseService.updateUserSettings({
-                    memory_words_per_session: value
-                });
-                if (result.success) {
-                    console.log('每次背诵数量已更新');
-                }
-            }
-        });
-    }
-
     // 加载单词统计
     async function loadMemoryStats() {
         const result = await DatabaseService.getMemoryStats();
@@ -1091,51 +1599,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    // ===== 设置页面二级导航 =====
-    const mainSettings = document.getElementById('mainSettings');
-    const settingsMenuItems = document.querySelectorAll('.settings-menu-item[data-target]');
-    const settingsDetails = document.querySelectorAll('.settings-detail');
-    const backButtons = document.querySelectorAll('.back-button');
-
-    // 点击设置菜单项，显示详情页
-    settingsMenuItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const targetId = this.dataset.target;
-            const targetDetail = document.getElementById(targetId);
-
-            if (targetDetail) {
-                mainSettings.style.display = 'none';
-                targetDetail.style.display = 'block';
-
-                // 如果打开背单词设置，加载统计数据
-                if (targetId === 'memorySettings') {
-                    loadMemoryStats();
-                    loadSettings(); // 加载设置值
-                }
-            }
-        });
-    });
-
-    // 点击返回按钮，返回主设置页
-    backButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            settingsDetails.forEach(detail => {
-                detail.style.display = 'none';
-            });
-            mainSettings.style.display = 'block';
-        });
-    });
-
     // ===== API配置功能 =====
-    const apiSecretIdInput = document.getElementById('apiSecretId');
-    const apiSecretKeyInput = document.getElementById('apiSecretKey');
-    const apiProjectIdInput = document.getElementById('apiProjectId');
-    const saveApiBtn = document.getElementById('saveApiBtn');
-    const apiMessage = document.getElementById('apiMessage');
 
     // 加载API配置（从Supabase）
     async function loadApiSettings() {
         try {
+            // 获取DOM元素（每次调用时重新获取）
+            const apiSecretIdInput = document.getElementById('apiSecretId');
+            const apiSecretKeyInput = document.getElementById('apiSecretKey');
+            const apiProjectIdInput = document.getElementById('apiProjectId');
+
             const result = await DatabaseService.getUserSettings();
 
             if (result.success && result.data) {
@@ -1475,13 +1948,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     const channelDetails = document.querySelectorAll('.channel-detail');
     const backToChannelsButtons = document.querySelectorAll('.channel-back-button');
 
-    const enableChannelTencent = document.getElementById('enableChannelTencent');
-    const enableChannelAli = document.getElementById('enableChannelAli');
-    const enableChannelZhipu = document.getElementById('enableChannelZhipu');
-    const enableChannelSilicon = document.getElementById('enableChannelSilicon');
-    const enableChannelDeepL = document.getElementById('enableChannelDeepL');
-    const enableChannelMicrosoft = document.getElementById('enableChannelMicrosoft');
-    const enableChannelGPT = document.getElementById('enableChannelGPT');
+    // 声明变量但不立即获取DOM（避免提前初始化错误）
+    let enableChannelTencent = null;
+    let enableChannelAli = null;
+    let enableChannelZhipu = null;
+    let enableChannelSilicon = null;
+    let enableChannelDeepL = null;
+    let enableChannelMicrosoft = null;
+    let enableChannelGPT = null;
 
     function showChannelsList() {
         if (channelsList) channelsList.style.display = 'block';
@@ -1521,6 +1995,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     async function loadChannelSettings() {
         try {
+            // 获取DOM元素（每次调用时重新获取）
+            if (!enableChannelTencent) enableChannelTencent = document.getElementById('enableChannelTencent');
+            if (!enableChannelAli) enableChannelAli = document.getElementById('enableChannelAli');
+            if (!enableChannelZhipu) enableChannelZhipu = document.getElementById('enableChannelZhipu');
+            if (!enableChannelSilicon) enableChannelSilicon = document.getElementById('enableChannelSilicon');
+            if (!enableChannelDeepL) enableChannelDeepL = document.getElementById('enableChannelDeepL');
+            if (!enableChannelMicrosoft) enableChannelMicrosoft = document.getElementById('enableChannelMicrosoft');
+            if (!enableChannelGPT) enableChannelGPT = document.getElementById('enableChannelGPT');
+
             const result = await chrome.storage.local.get('channelSettings');
             const s = result.channelSettings || {};
             if (enableChannelTencent) enableChannelTencent.checked = !!s.tencent;
@@ -1536,6 +2019,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     async function saveChannelSettings() {
+        // 确保DOM元素已获取
+        if (!enableChannelTencent) enableChannelTencent = document.getElementById('enableChannelTencent');
+        if (!enableChannelAli) enableChannelAli = document.getElementById('enableChannelAli');
+        if (!enableChannelZhipu) enableChannelZhipu = document.getElementById('enableChannelZhipu');
+        if (!enableChannelSilicon) enableChannelSilicon = document.getElementById('enableChannelSilicon');
+        if (!enableChannelDeepL) enableChannelDeepL = document.getElementById('enableChannelDeepL');
+        if (!enableChannelMicrosoft) enableChannelMicrosoft = document.getElementById('enableChannelMicrosoft');
+        if (!enableChannelGPT) enableChannelGPT = document.getElementById('enableChannelGPT');
+
         const s = {
             tencent: !!enableChannelTencent?.checked,
             ali: !!enableChannelAli?.checked,
@@ -1547,6 +2039,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         await chrome.storage.local.set({ channelSettings: s });
     }
+
+    // 获取DOM元素并绑定事件
+    if (!enableChannelTencent) enableChannelTencent = document.getElementById('enableChannelTencent');
+    if (!enableChannelAli) enableChannelAli = document.getElementById('enableChannelAli');
+    if (!enableChannelZhipu) enableChannelZhipu = document.getElementById('enableChannelZhipu');
+    if (!enableChannelSilicon) enableChannelSilicon = document.getElementById('enableChannelSilicon');
+    if (!enableChannelDeepL) enableChannelDeepL = document.getElementById('enableChannelDeepL');
+    if (!enableChannelMicrosoft) enableChannelMicrosoft = document.getElementById('enableChannelMicrosoft');
+    if (!enableChannelGPT) enableChannelGPT = document.getElementById('enableChannelGPT');
 
     [enableChannelTencent, enableChannelAli, enableChannelZhipu, enableChannelSilicon, enableChannelDeepL, enableChannelMicrosoft, enableChannelGPT]
         .forEach(cb => cb && cb.addEventListener('change', saveChannelSettings));
@@ -1615,3 +2116,196 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 8. 通过所有检查，保存记录
         return true;
     }
+
+    async function loadSupabaseConfig() {
+        try {
+            if (typeof chrome !== "undefined" && chrome.storage) {
+                return new Promise((resolve) => {
+                    chrome.storage.local.get(["supabaseUrl", "supabaseAnonKey"], (result) => {
+                        resolve({
+                            url: result.supabaseUrl || "",
+                            anonKey: result.supabaseAnonKey || ""
+                        });
+                    });
+                });
+            } else {
+                return {
+                    url: localStorage.getItem("supabaseUrl") || "",
+                    anonKey: localStorage.getItem("supabaseAnonKey") || ""
+                };
+            }
+        } catch (error) {
+            console.error("加载 Supabase 配置失败:", error);
+            return { url: "", anonKey: "" };
+        }
+    }
+
+    async function saveSupabaseConfigToStorage(url, anonKey) {
+        try {
+            if (typeof chrome !== "undefined" && chrome.storage) {
+                return new Promise((resolve, reject) => {
+                    chrome.storage.local.set({
+                        supabaseUrl: url,
+                        supabaseAnonKey: anonKey
+                    }, () => {
+                        if (chrome.runtime.lastError) {
+                            reject(new Error(chrome.runtime.lastError.message));
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+            } else {
+                localStorage.setItem("supabaseUrl", url);
+                localStorage.setItem("supabaseAnonKey", anonKey);
+            }
+        } catch (error) {
+            console.error("保存 Supabase 配置失败:", error);
+            throw error;
+        }
+    }
+
+    async function updateSupabaseConfigStatus() {
+        try {
+            const config = await loadSupabaseConfig();
+            const statusElement = document.getElementById("supabaseConfigStatus");
+            if (statusElement) {
+                if (config.url && config.anonKey) {
+                    statusElement.textContent = "已配置";
+                    statusElement.style.color = "#22c55e";
+                } else {
+                    statusElement.textContent = "未配置";
+                    statusElement.style.color = "#999";
+                }
+            }
+            const urlInput = document.getElementById("supabaseUrl");
+            const keyInput = document.getElementById("supabaseAnonKey");
+            if (urlInput) urlInput.value = config.url;
+            if (keyInput) keyInput.value = config.anonKey;
+        } catch (error) {
+            console.error("更新 Supabase 配置状态失败:", error);
+        }
+    }
+
+    const saveSupabaseConfigBtn = document.getElementById("saveSupabaseConfig");
+    if (saveSupabaseConfigBtn) {
+        saveSupabaseConfigBtn.addEventListener("click", async function() {
+            const urlInput = document.getElementById("supabaseUrl");
+            const keyInput = document.getElementById("supabaseAnonKey");
+            const messageDiv = document.getElementById("supabaseConfigMessage");
+            const url = urlInput.value.trim();
+            const key = keyInput.value.trim();
+            if (!url || !key) {
+                messageDiv.textContent = "请填写完整的配置信息";
+                messageDiv.style.background = "#fee";
+                messageDiv.style.color = "#c33";
+                messageDiv.style.display = "block";
+                return;
+            }
+            if (!url.match(/^https:\/\/[^\.]+\.supabase\.co$/)) {
+                messageDiv.textContent = "URL 格式不正确，应为：https://xxx.supabase.co";
+                messageDiv.style.background = "#fee";
+                messageDiv.style.color = "#c33";
+                messageDiv.style.display = "block";
+                return;
+            }
+            if (!key.match(/^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/)) {
+                messageDiv.textContent = "Anon Key 格式不正确，应为有效的 JWT token";
+                messageDiv.style.background = "#fee";
+                messageDiv.style.color = "#c33";
+                messageDiv.style.display = "block";
+                return;
+            }
+            try {
+                await saveSupabaseConfigToStorage(url, key);
+                await updateSupabaseConfigStatus();
+                messageDiv.textContent = "配置已保存，请点击测试连接验证配置是否正确";
+                messageDiv.style.background = "#d4edda";
+                messageDiv.style.color = "#155724";
+                messageDiv.style.display = "block";
+                setTimeout(() => { messageDiv.style.display = "none"; }, 5000);
+            } catch (error) {
+                messageDiv.textContent = "保存失败: " + error.message;
+                messageDiv.style.background = "#fee";
+                messageDiv.style.color = "#c33";
+                messageDiv.style.display = "block";
+            }
+        });
+    }
+
+    const testSupabaseConnectionBtn = document.getElementById("testSupabaseConnection");
+    if (testSupabaseConnectionBtn) {
+        testSupabaseConnectionBtn.addEventListener("click", async function() {
+            const urlInput = document.getElementById("supabaseUrl");
+            const keyInput = document.getElementById("supabaseAnonKey");
+            const resultDiv = document.getElementById("supabaseTestResult");
+            const url = urlInput.value.trim();
+            const key = keyInput.value.trim();
+            if (!url || !key) {
+                resultDiv.textContent = "请先填写配置信息";
+                resultDiv.style.background = "#fee";
+                resultDiv.style.color = "#c33";
+                resultDiv.style.display = "block";
+                return;
+            }
+            resultDiv.textContent = "正在测试连接...";
+            resultDiv.style.background = "#fff3cd";
+            resultDiv.style.color = "#856404";
+            resultDiv.style.display = "block";
+            testSupabaseConnectionBtn.disabled = true;
+            try {
+                // 简单验证 URL 和 Key 格式
+                if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+                    throw new Error('URL 格式不正确，应该是 https://xxx.supabase.co');
+                }
+
+                if (!key.startsWith('eyJ')) {
+                    throw new Error('Anon Key 格式不正确，应该是 JWT token');
+                }
+
+                const testClient = window.supabase.createClient(url, key);
+
+                // 尝试查询 translations 表来测试连接
+                const { data, error } = await testClient.from('translations').select('id').limit(1);
+
+                // 如果表不存在，说明连接是成功的（只是表还没创建）
+                if (error) {
+                    const errorMsg = error.message || '';
+                    const errorCode = error.code || '';
+
+                    // 如果是"表不存在"的错误，说明连接成功
+                    if (errorMsg.includes('Could not find the table') ||
+                        errorMsg.includes('does not exist') ||
+                        errorCode === 'PGRST116' ||
+                        errorMsg.includes('schema cache')) {
+                        // 表不存在，但连接成功
+                        resultDiv.textContent = "✓ 连接成功！提示：首次使用需要创建数据库表";
+                        resultDiv.style.background = "#d1ecf1";
+                        resultDiv.style.color = "#0c5460";
+                        resultDiv.style.display = "block";
+                    } else {
+                        // 其他错误，真正的连接失败
+                        throw error;
+                    }
+                } else {
+                    // 查询成功
+                    resultDiv.textContent = "✓ 连接成功！配置有效";
+                    resultDiv.style.background = "#d4edda";
+                    resultDiv.style.color = "#155724";
+                    resultDiv.style.display = "block";
+                }
+
+                await saveSupabaseConfigToStorage(url, key);
+                await updateSupabaseConfigStatus();
+                setTimeout(() => { resultDiv.style.display = "none"; }, 5000);
+            } catch (error) {
+                resultDiv.textContent = "✕ 连接失败: " + error.message;
+                resultDiv.style.background = "#fee";
+                resultDiv.style.color = "#c33";
+                resultDiv.style.display = "block";
+            } finally {
+                testSupabaseConnectionBtn.disabled = false;
+            }
+        });
+    }
+    updateSupabaseConfigStatus();

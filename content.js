@@ -31,33 +31,66 @@ function detectLanguage(text) {
 
 // 检查是否应该跳过翻译
 function shouldSkipTranslation(text) {
+  const trimmedText = text.trim();
+
   // 1. 检查是否全是数字（包括小数点）
-  if (/^[\d\s.,]+$/.test(text.replace(/\s/g, ''))) {
+  if (/^[\d\s.,]+$/.test(trimmedText.replace(/\s/g, ''))) {
+    console.log('跳过翻译：全是数字');
     return true;
   }
 
   // 2. 检查是否是单个字符
-  if (text.length === 1) {
+  if (trimmedText.length === 1) {
+    console.log('跳过翻译：单个字符');
     return true;
   }
 
   // 3. 检查是否包含特殊字符（包括emoji、符号等）
   // 特殊字符包括：emoji、数学符号、箭头符号、各种装饰性符号等
   const specialCharPattern = /[\p{S}\p{Sk}\p{So}\u2600-\u26FF\u2700-\u27BF\u2B50-\u2BFF\u{1F300}-\u{1F9FF}]/u;
-  if (specialCharPattern.test(text)) {
+  if (specialCharPattern.test(trimmedText)) {
+    console.log('跳过翻译：包含特殊字符/emoji');
     return true;
   }
 
   // 4. 检查是否纯标点符号
   const punctuationPattern = /^[\s\p{P}\p{S}]+$/u;
-  if (punctuationPattern.test(text)) {
+  if (punctuationPattern.test(trimmedText)) {
+    console.log('跳过翻译：纯标点符号');
     return true;
   }
 
   // 5. 检查是否是代码片段（包含多个特殊字符的组合）
   // 例如：+=, ->, =>, !=, <=, >=, ===, !==, &&, ||, ++, -- 等
   const codePattern = /^(\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<=|>>=|->|=>|!=|==|===|!==|<=|>=|&&|\|\||\+\+|--|\+|-|\*|\/|%|<|>|=|&|\||\^|!|~)+$/;
-  if (codePattern.test(text.trim())) {
+  if (codePattern.test(trimmedText)) {
+    console.log('跳过翻译：代码片段');
+    return true;
+  }
+
+  // 6. 检查是否包含数字（新规则：如果文本中包含数字，跳过翻译）
+  // 这样可以过滤掉类似 "test123", "hello 2024", "word2" 这样的内容
+  if (/\d/.test(trimmedText)) {
+    console.log('跳过翻译：包含数字');
+    return true;
+  }
+
+  // 7. 检查是否包含下划线、连字符等（可能是变量名、代码标识符）
+  // 如果包含这些字符且不是正常的英文单词，跳过
+  if (/_|--|[-.]{2,}/.test(trimmedText)) {
+    console.log('跳过翻译：包含代码标识符');
+    return true;
+  }
+
+  // 8. 检查是否以连字符开头或结尾（可能是命令行参数）
+  if (/^-.+|-$/.test(trimmedText)) {
+    console.log('跳过翻译：命令行参数格式');
+    return true;
+  }
+
+  // 9. 检查是否包含路径分隔符、URL等
+  if ((/[\/\\:@]/.test(trimmedText) && trimmedText.length > 5)) {
+    console.log('跳过翻译：可能是路径或URL');
     return true;
   }
 
@@ -199,10 +232,16 @@ function createTooltip(x, y, text, isLoading = false) {
     `;
   }
 
-  // 设置位置
+  // 先添加到DOM（隐藏状态），以便能够获取尺寸
+  tooltipElement.style.visibility = 'hidden';
+  tooltipElement.style.position = 'absolute';
+  document.body.appendChild(tooltipElement);
+
+  // 设置位置（现在可以获取正确的尺寸了）
   repositionTooltip(x, y);
 
-  document.body.appendChild(tooltipElement);
+  // 显示tooltip
+  tooltipElement.style.visibility = 'visible';
 
   // 绑定事件
   bindTooltipEvents();
