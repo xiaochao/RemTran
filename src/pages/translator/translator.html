@@ -6,7 +6,13 @@
     <title>翻译助手</title>
     <link rel="stylesheet" href="translator.css">
     <!-- Supabase JS SDK (本地文件，兼容 Chrome 扩展 Manifest V3) -->
-    <script src="supabase.js"></script>
+    <script src="../../lib/supabase.js"></script>
+    <!-- Supabase 配置 -->
+    <script src="../../../config/supabase-config.js"></script>
+    <!-- 认证服务 -->
+    <script src="../../background/services/auth-service.js"></script>
+    <!-- 数据库服务 -->
+    <script src="../../background/services/database-service.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -704,11 +710,7 @@
         </div>
     </main>
 
-    <!-- 配置文件（必须在 supabase-config.js 之前引入） -->
-    <script src="config.js"></script>
-    <script src="supabase-config.js"></script>
-    <script src="auth-service.js"></script>
-    <script src="database-service.js"></script>
-    <script src="translator-supabase.js"></script>
+    <!-- 主脚本 -->
+    <script src="translator.js"></script>
 </body>
 </html>

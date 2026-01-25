@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>翻译助手 - 登录</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="auth.css">
     <!-- Supabase JS SDK (本地文件，兼容 Chrome 扩展 Manifest V3) -->
-    <script src="supabase.js"></script>
+    <script src="../../lib/supabase.js"></script>
     <style>
         /* 加载遮罩样式 */
         #loading-overlay {
@@ -166,11 +166,13 @@
         </div>
     </div>
 
-    <!-- 配置文件（必须在 supabase-config.js 之前引入） -->
-    <script src="config.js"></script>
-    <script src="supabase-config.js"></script>
-    <script src="auth-service.js"></script>
-    <script src="database-service.js"></script>
-    <script src="script-supabase.js"></script>
+    <!-- Supabase 配置 -->
+    <script src="../../../config/supabase-config.js"></script>
+    <!-- 认证服务 -->
+    <script src="../../background/services/auth-service.js"></script>
+    <!-- 数据库服务 -->
+    <script src="../../background/services/database-service.js"></script>
+    <!-- 登录页面脚本 -->
+    <script src="index.js"></script>
 </body>
 </html>

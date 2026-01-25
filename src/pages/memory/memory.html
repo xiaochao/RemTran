@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>背单词</title>
-    <link rel="stylesheet" href="translator.css">
+    <link rel="stylesheet" href="memory.css">
     <style>
         /* 重置 body 样式，确保全屏显示 */
         html, body {
@@ -325,12 +325,15 @@
         </div>
     </div>
 
-    <script src="supabase.js"></script>
-    <!-- 配置文件（必须在 supabase-config.js 之前引入） -->
-    <script src="config.js"></script>
-    <script src="supabase-config.js"></script>
-    <script src="auth-service.js"></script>
-    <script src="database-service.js"></script>
+    <!-- Supabase JS SDK -->
+    <script src="../../lib/supabase.js"></script>
+    <!-- Supabase 配置 -->
+    <script src="../../../config/supabase-config.js"></script>
+    <!-- 认证服务 -->
+    <script src="../../background/services/auth-service.js"></script>
+    <!-- 数据库服务 -->
+    <script src="../../background/services/database-service.js"></script>
+    <!-- 主脚本 -->
     <script src="memory.js"></script>
 </body>
 </html>
