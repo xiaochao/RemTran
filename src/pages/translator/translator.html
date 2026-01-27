@@ -337,7 +337,7 @@
                     <span class="detail-title">翻译渠道</span>
                 </div>
                 <div class="detail-content" id="channelsList">
-                    <div class="settings-menu-item" data-channel="tencent">
+                    <div class="settings-menu-item channel-item" data-channel="tencent">
                         <div class="menu-item-left">
                             <span class="menu-item-title">腾讯云</span>
                             <small class="menu-item-subtitle">TMT 机器翻译</small>
@@ -347,7 +347,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-menu-item" data-channel="ali">
+                    <div class="settings-menu-item channel-item" data-channel="ali">
                         <div class="menu-item-left">
                             <span class="menu-item-title">阿里云</span>
                             <small class="menu-item-subtitle">通用翻译</small>
@@ -357,7 +357,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-menu-item" data-channel="zhipu">
+                    <div class="settings-menu-item channel-item" data-channel="zhipu">
                         <div class="menu-item-left">
                             <span class="menu-item-title">智谱</span>
                             <small class="menu-item-subtitle">大模型翻译</small>
@@ -367,7 +367,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-menu-item" data-channel="silicon">
+                    <div class="settings-menu-item channel-item" data-channel="silicon">
                         <div class="menu-item-left">
                             <span class="menu-item-title">硅基流动</span>
                             <small class="menu-item-subtitle">大模型翻译</small>
@@ -377,7 +377,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-menu-item" data-channel="deepl">
+                    <div class="settings-menu-item channel-item" data-channel="deepl">
                         <div class="menu-item-left">
                             <span class="menu-item-title">DeepL</span>
                             <small class="menu-item-subtitle">高质量翻译</small>
@@ -387,7 +387,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-menu-item" data-channel="microsoft">
+                    <div class="settings-menu-item channel-item" data-channel="microsoft">
                         <div class="menu-item-left">
                             <span class="menu-item-title">微软</span>
                             <small class="menu-item-subtitle">Azure 翻译</small>
@@ -397,7 +397,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-menu-item" data-channel="gpt">
+                    <div class="settings-menu-item channel-item" data-channel="gpt">
                         <div class="menu-item-left">
                             <span class="menu-item-title">GPT</span>
                             <small class="menu-item-subtitle">OpenAI 翻译</small>
@@ -428,6 +428,25 @@
                         <label class="setting-label-title">ProjectId（可选）</label>
                         <input type="number" class="setting-input" id="tencentProjectId" placeholder="0" value="0">
                     </div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="tencent">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="tencent">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="tencent"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingTencent" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
 
                 <div class="detail-content channel-detail" id="channelAli" style="display:none;">
@@ -447,22 +466,98 @@
                         <label class="setting-label-title">Region</label>
                         <input type="text" class="setting-input" id="aliRegion" placeholder="cn-shanghai">
                     </div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="ali">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="ali">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="ali"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingAli" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
 
                 <div class="detail-content channel-detail" id="channelZhipu" style="display:none;">
                     <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">智谱配置</span></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="zhipuApiKey"></div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="zhipu">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="zhipu">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="zhipu"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingZhipu" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
 
                 <div class="detail-content channel-detail" id="channelSilicon" style="display:none;">
                     <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">硅基流动配置</span></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="siliconApiKey"></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Model</label><input type="text" class="setting-input" id="siliconModel" placeholder="eg. qwen-turbo"></div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="silicon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="silicon">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="silicon"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingSilicon" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
 
                 <div class="detail-content channel-detail" id="channelDeepL" style="display:none;">
                     <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">DeepL 配置</span></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="deeplApiKey"></div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="deepl">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="deepl">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="deepl"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingDeepl" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
 
                 <div class="detail-content channel-detail" id="channelMicrosoft" style="display:none;">
@@ -470,12 +565,50 @@
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Key</label><input type="password" class="setting-input" id="msKey"></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Endpoint</label><input type="text" class="setting-input" id="msEndpoint" placeholder="https://..."></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Region</label><input type="text" class="setting-input" id="msRegion" placeholder="eastasia"></div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="microsoft">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="microsoft">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="microsoft"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingMicrosoft" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
 
                 <div class="detail-content channel-detail" id="channelGPT" style="display:none;">
                     <div class="detail-header"><button class="channel-back-button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"/></svg></button><span class="detail-title">GPT 配置</span></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">API Key</label><input type="password" class="setting-input" id="gptApiKey"></div>
                     <div class="setting-item-compact setting-item-vertical"><label class="setting-label-title">Model</label><input type="text" class="setting-input" id="gptModel" placeholder="gpt-4o-mini"></div>
+                    <div class="channel-detail-actions">
+                        <button class="test-config-btn" data-channel="gpt">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1v6M8 7l2-2M8 7l-2-2M13 11v1a3 3 0 01-6 0v-2M3 11v1a3 3 0 006 0v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span>测试连接</span>
+                        </button>
+                        <button class="save-config-btn" data-channel="gpt">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span>保存配置</span>
+                        </button>
+                        <div class="test-status-message" data-channel="gpt"></div>
+                    </div>
+                    <div class="config-loading-overlay" id="loadingGpt" style="display:none;">
+                        <div class="config-loading-spinner"></div>
+                        <div class="config-loading-text">正在加载配置...</div>
+                    </div>
                 </div>
             </div>
 
@@ -513,14 +646,6 @@
                         </label>
                     </div>
 
-                    <div class="setting-item-compact">
-                        <label class="setting-label-title">启用腾讯云翻译</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="enableTencentTranslate">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <small class="setting-hint">开启后，翻译结果将包含腾讯云翻译的内容（需先配置API密钥）</small>
                 </div>
             </div>
 

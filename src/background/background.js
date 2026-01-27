@@ -384,7 +384,7 @@ async function generateTencentSignature(secretId, secretKey, payload, timestamp)
   const service = 'tmt';
   const host = TENCENT_API_ENDPOINT;
   const algorithm = 'TC3-HMAC-SHA256';
-  const date = new Date(timestamp * 1000).toISOString().substr(0, 10);
+  const date = new Date(timestamp * 1000).toISOString().substring(0, 10);
 
   // 1. 构建规范请求串
   const httpRequestMethod = 'POST';
@@ -688,8 +688,7 @@ async function getSettings() {
     secretKey: '',
     sourceLanguage: 'auto',
     targetLanguage: 'zh',
-    projectId: 0,
-    enableTencentTranslate: false
+    projectId: 0
   };
 }
 

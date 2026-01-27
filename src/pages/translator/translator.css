@@ -603,6 +603,183 @@ body {
     flex-shrink: 0;
 }
 
+/* 渠道项右侧区域 */
+.menu-item-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 渠道配置详情页按钮区域 */
+.channel-detail-actions {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    margin-top: 16px;
+    background: #f8f8f8;
+    border-radius: 12px;
+}
+
+.channel-detail-actions button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.channel-detail-actions button svg {
+    flex-shrink: 0;
+}
+
+/* 测试连接按钮 */
+.test-config-btn {
+    background: white;
+    color: #2B7FFF;
+    border: 1px solid #2B7FFF !important;
+}
+
+.test-config-btn:hover:not(:disabled) {
+    background: #2B7FFF;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(43, 127, 255, 0.3);
+}
+
+.test-config-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.test-config-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.test-config-btn.test-success {
+    background: #4CAF50 !important;
+    color: white;
+    border-color: #4CAF50 !important;
+}
+
+.test-config-btn.test-failed {
+    background: #f44336 !important;
+    color: white;
+    border-color: #f44336 !important;
+}
+
+/* 保存配置按钮 */
+.save-config-btn {
+    background: linear-gradient(90deg, #2B7FFF 0%, #AD46FF 100%);
+    color: white;
+}
+
+.save-config-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(43, 127, 255, 0.4);
+}
+
+.save-config-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.save-config-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 测试状态消息 */
+.channel-detail-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.channel-detail-actions > button {
+    width: 100%;
+}
+
+.test-status-message {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    line-height: 1.4;
+}
+
+.test-status-message.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.test-status-message.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.test-status-message.testing {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+
+/* 配置加载遮罩 */
+.config-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+    border-radius: 16px;
+}
+
+.config-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f0f0f0;
+    border-top-color: #2B7FFF;
+    border-radius: 50%;
+    animation: config-spin 0.8s linear infinite;
+}
+
+@keyframes config-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.config-loading-text {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* 加载时禁用的元素样式 */
+.loading-disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
 .settings-divider {
     height: 1px;
     background: #f0f0f0;
@@ -662,6 +839,7 @@ body {
     padding: 8px 8px 80px 8px;
     overflow-y: auto;
     flex: 1;
+    position: relative;
 }
 
 /* 紧凑型设置项 */

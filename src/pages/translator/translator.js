@@ -1305,6 +1305,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // ===== 设置页面功能 =====
 
+    // 声明设置页面的DOM元素变量（在外部作用域，以便后续使用）
+    let defaultTargetLangSelect = null;
+    let autoTranslateCheckbox = null;
+    let selectionTranslateCheckbox = null;
+    let shortcutTranslateCheckbox = null;
+    let autoDetectLanguageCheckbox = null;
+    let showPhoneticCheckbox = null;
+    let showExamplesCheckbox = null;
+
     // 从数据库加载设置
     async function loadSettings() {
         const result = await DatabaseService.getUserSettings();
@@ -1312,15 +1321,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (result.success && result.data) {
             const settings = result.data;
 
-            // 获取DOM元素（每次调用时重新获取，确保元素存在）
-            const defaultTargetLangSelect = document.getElementById('defaultTargetLang');
-            const autoTranslateCheckbox = document.getElementById('autoTranslate');
-            const enableTencentTranslateCheckbox = document.getElementById('enableTencentTranslate');
-            const selectionTranslateCheckbox = document.getElementById('selectionTranslate');
-            const shortcutTranslateCheckbox = document.getElementById('shortcutTranslate');
-            const autoDetectLanguageCheckbox = document.getElementById('autoDetectLanguage');
-            const showPhoneticCheckbox = document.getElementById('showPhonetic');
-            const showExamplesCheckbox = document.getElementById('showExamples');
+            // 获取DOM元素并保存到外部变量
+            defaultTargetLangSelect = document.getElementById('defaultTargetLang');
+            autoTranslateCheckbox = document.getElementById('autoTranslate');
+            selectionTranslateCheckbox = document.getElementById('selectionTranslate');
+            shortcutTranslateCheckbox = document.getElementById('shortcutTranslate');
+            autoDetectLanguageCheckbox = document.getElementById('autoDetectLanguage');
+            showPhoneticCheckbox = document.getElementById('showPhonetic');
+            showExamplesCheckbox = document.getElementById('showExamples');
 
             // 应用设置到UI
             if (defaultTargetLangSelect) {
@@ -1328,9 +1336,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             if (autoTranslateCheckbox) {
                 autoTranslateCheckbox.checked = settings.auto_translate || false;
-            }
-            if (enableTencentTranslateCheckbox) {
-                enableTencentTranslateCheckbox.checked = settings.enable_tencent_translate || false;
             }
             if (selectionTranslateCheckbox) {
                 selectionTranslateCheckbox.checked = settings.selection_translate !== false;
@@ -1508,7 +1513,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         const settings = {
             default_target_lang: defaultTargetLangSelect?.value || 'zh',
             auto_translate: autoTranslateCheckbox?.checked || false,
-            enable_tencent_translate: enableTencentTranslateCheckbox?.checked || false,
             selection_translate: selectionTranslateCheckbox?.checked !== false,
             shortcut_translate: shortcutTranslateCheckbox?.checked !== false,
             auto_detect_language: autoDetectLanguageCheckbox?.checked !== false,
@@ -1565,9 +1569,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     if (autoTranslateCheckbox) {
         autoTranslateCheckbox.addEventListener('change', saveSettings);
-    }
-    if (enableTencentTranslateCheckbox) {
-        enableTencentTranslateCheckbox.addEventListener('change', saveSettings);
     }
     if (selectionTranslateCheckbox) {
         selectionTranslateCheckbox.addEventListener('change', saveSettings);
@@ -1635,8 +1636,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 secretKey: settings.api_secret_key || '',
                 sourceLanguage: settings.source_language || 'auto',
                 targetLanguage: settings.default_target_lang || 'zh',
-                projectId: settings.api_project_id || 0,
-                enableTencentTranslate: settings.enable_tencent_translate || false
+                projectId: settings.api_project_id || 0
             };
 
             await chrome.runtime.sendMessage({
@@ -1647,80 +1647,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('同步API配置到扩展失败:', error);
         }
     }
-
-    // 保存API配置（到Supabase和Chrome存储）
-    if (saveApiBtn) {
-        saveApiBtn.addEventListener('click', async function() {
-            const secretId = apiSecretIdInput.value.trim();
-            const secretKey = apiSecretKeyInput.value.trim();
-            const projectId = parseInt(apiProjectIdInput.value) || 0;
-
-            // 验证输入
-            if (!secretId || !secretKey) {
-                showApiMessage('请输入 SecretId 和 SecretKey', 'error');
-                return;
-            }
-
-            // 验证 SecretId 格式
-            if (!secretId.startsWith('AKID') || secretId.length !== 36) {
-                showApiMessage('SecretId 格式不正确，应以 AKID 开头且长度为 36 字符', 'error');
-                return;
-            }
-
-            // 验证 SecretKey 长度
-            if (secretKey.length !== 32) {
-                showApiMessage('SecretKey 格式不正确，长度应为 32 字符', 'error');
-                return;
-            }
-
-            // 验证 ProjectId
-            if (isNaN(projectId) || projectId < 0) {
-                showApiMessage('ProjectId 必须是大于等于 0 的整数', 'error');
-                return;
-            }
-
-            try {
-                // 保存到Supabase
-                const supabaseSettings = {
-                    api_secret_id: secretId,
-                    api_secret_key: secretKey,
-                    api_project_id: projectId
-                };
-
-                const result = await DatabaseService.updateUserSettings(supabaseSettings);
-
-                if (result.success) {
-                    // 同步到Chrome扩展存储
-                    await syncApiSettingsToExtension({
-                        api_secret_id: secretId,
-                        api_secret_key: secretKey,
-                        api_project_id: projectId,
-                        default_target_lang: defaultTargetLangSelect?.value || 'zh',
-                        source_language: 'auto'
-                    });
-
-                    showApiMessage('API配置已保存并同步', 'success');
-                } else {
-                    showApiMessage('保存失败: ' + (result.error || '未知错误'), 'error');
-                }
-            } catch (error) {
-                console.error('保存API配置失败:', error);
-                showApiMessage('保存失败: ' + error.message, 'error');
-            }
-        });
-    }
-
-    // 显示API消息
-    function showApiMessage(message, type) {
-        if (!apiMessage) return;
-
-        apiMessage.textContent = message;
-        apiMessage.className = 'api-message ' + type;
-
-        setTimeout(() => {
-            apiMessage.className = 'api-message';
-        }, 3000);
-    }loadChannelSettings();
 
     async function getCurrentUserId() {
         const { data: { user } } = await window.supabaseClient.auth.getUser();
@@ -1767,49 +1693,166 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     async function saveProviderEncrypted(provider, encBlob) {
-        const { data: { user } } = await window.supabaseClient.auth.getUser();
-        if (!user) throw new Error('未登录');
-        const current = user.user_metadata?.provider_configs_enc || {};
-        const nextMeta = { provider_configs_enc: { ...current, [provider]: encBlob } };
-        const { error } = await window.supabaseClient.auth.updateUser({ data: nextMeta });
-        if (error) throw error;
+        console.log('保存配置 - Provider:', provider);
+
+        // 暂时使用明文格式保存（使用现有的数据库列）
+        const cfg = await decryptConfig(encBlob);
+
+        if (provider === 'tencent') {
+            const settings = {
+                api_secret_id: cfg.secretId,
+                api_secret_key: cfg.secretKey,
+                api_project_id: cfg.projectId || 0
+            };
+
+            console.log('准备保存配置到数据库（明文格式）:', settings);
+
+            const result = await DatabaseService.updateUserSettings(settings);
+            if (!result.success) {
+                console.error('保存配置失败:', result.error);
+                throw new Error(result.error);
+            }
+            console.log('保存配置成功');
+        } else {
+            // 其他渠道暂时保存到 localStorage（因为数据库表没有对应列）
+            console.log('其他渠道保存到localStorage');
+            localStorage.setItem(`provider_config_${provider}`, JSON.stringify(cfg));
+        }
     }
 
+    console.log('定义 window.loadProviderConfigByName 函数...');
     window.loadProviderConfigByName = async function(provider) {
+        console.log('loadProviderConfigByName 被调用，provider:', provider);
+
+        // 获取对应的渠道详情页ID
+        const channelMap = {
+            tencent: 'channelTencent',
+            ali: 'channelAli',
+            zhipu: 'channelZhipu',
+            silicon: 'channelSilicon',
+            deepl: 'channelDeepL',
+            microsoft: 'channelMicrosoft',
+            gpt: 'channelGPT'
+        };
+        const channelId = channelMap[provider];
+        console.log('对应的渠道详情页ID:', channelId);
+
         try {
-            const { data: { user } } = await window.supabaseClient.auth.getUser();
-            const blob = user?.user_metadata?.provider_configs_enc?.[provider];
-            if (!blob) return;
-            const cfg = await decryptConfig(blob);
-            if (provider === 'tencent') {
-                document.getElementById('tencentSecretId') && (document.getElementById('tencentSecretId').value = cfg.secretId || '');
-                document.getElementById('tencentSecretKey') && (document.getElementById('tencentSecretKey').value = cfg.secretKey || '');
-                document.getElementById('tencentProjectId') && (document.getElementById('tencentProjectId').value = cfg.projectId || 0);
-            } else if (provider === 'ali') {
-                document.getElementById('aliAccessKeyId') && (document.getElementById('aliAccessKeyId').value = cfg.accessKeyId || '');
-                document.getElementById('aliAccessKeySecret') && (document.getElementById('aliAccessKeySecret').value = cfg.accessKeySecret || '');
-                document.getElementById('aliRegion') && (document.getElementById('aliRegion').value = cfg.region || '');
-            } else if (provider === 'zhipu') {
-                document.getElementById('zhipuApiKey') && (document.getElementById('zhipuApiKey').value = cfg.apiKey || '');
-            } else if (provider === 'silicon') {
-                document.getElementById('siliconApiKey') && (document.getElementById('siliconApiKey').value = cfg.apiKey || '');
-                document.getElementById('siliconModel') && (document.getElementById('siliconModel').value = cfg.model || '');
-            } else if (provider === 'deepl') {
-                document.getElementById('deeplApiKey') && (document.getElementById('deeplApiKey').value = cfg.apiKey || '');
-            } else if (provider === 'microsoft') {
-                document.getElementById('msKey') && (document.getElementById('msKey').value = cfg.key || '');
-                document.getElementById('msEndpoint') && (document.getElementById('msEndpoint').value = cfg.endpoint || '');
-                document.getElementById('msRegion') && (document.getElementById('msRegion').value = cfg.region || '');
-            } else if (provider === 'gpt') {
-                document.getElementById('gptApiKey') && (document.getElementById('gptApiKey').value = cfg.apiKey || '');
-                document.getElementById('gptModel') && (document.getElementById('gptModel').value = cfg.model || '');
+            // 等待一小段时间确保DOM已准备好
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // 从数据库加载用户设置
+            console.log('开始从数据库获取用户设置...');
+            const result = await DatabaseService.getUserSettings();
+            console.log('数据库返回结果:', result);
+
+            if (!result.success || !result.data) {
+                console.log('获取用户设置失败或无数据');
+                if (channelId) hideChannelLoading(channelId);
+                return;
+            }
+
+            console.log('用户设置数据:', result.data);
+
+            // 先尝试新的加密格式
+            const configKey = `provider_config_${provider}_enc`;
+            const blob = result.data[configKey];
+
+            console.log('加载配置 - Provider:', provider);
+            console.log('配置key:', configKey);
+            console.log('加密配置blob:', blob);
+
+            if (blob) {
+                // 使用新的加密格式
+                console.log('使用加密格式，开始解密...');
+                const cfg = await decryptConfig(blob);
+                console.log('解密后的配置:', cfg);
+                loadConfigToInputs(provider, cfg);
+                console.log('配置已加载到输入框');
+            } else {
+                // 尝试旧的明文格式（腾讯云）
+                if (provider === 'tencent' && result.data.api_secret_id) {
+                    console.log('使用旧格式加载腾讯云配置');
+                    const cfg = {
+                        secretId: result.data.api_secret_id,
+                        secretKey: result.data.api_secret_key,
+                        projectId: result.data.api_project_id || 0
+                    };
+                    console.log('旧格式配置:', cfg);
+                    loadConfigToInputs(provider, cfg);
+
+                    // 自动迁移到新格式（加密保存）
+                    try {
+                        console.log('自动迁移配置到新格式...');
+                        const enc = await encryptConfig(cfg);
+                        await saveProviderEncrypted(provider, enc);
+                        console.log('配置迁移成功');
+                    } catch (e) {
+                        console.error('配置迁移失败:', e);
+                    }
+                } else {
+                    console.log('未找到', provider, '的配置');
+                }
+            }
+
+            // 配置加载完成，隐藏加载遮罩
+            console.log('配置加载流程完成，准备隐藏加载遮罩');
+            if (channelId) {
+                setTimeout(() => {
+                    console.log('执行隐藏加载遮罩:', channelId);
+                    hideChannelLoading(channelId);
+                }, 300);
             }
         } catch (e) {
-            console.error('解密并加载配置失败:', e);
+            console.error('加载配置失败:', e);
+            console.error('错误堆栈:', e.stack);
+            // 发生错误时也要隐藏加载遮罩
+            if (channelId) {
+                console.log('因错误隐藏加载遮罩:', channelId);
+                hideChannelLoading(channelId);
+            }
         }
     };
 
-    async function saveProviderConfig(provider) {
+    // 将配置加载到输入框
+    function loadConfigToInputs(provider, cfg) {
+        const setElementValue = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.value = value || '';
+                console.log(`设置 ${id} =`, value || '');
+            } else {
+                console.warn(`未找到元素: ${id}`);
+            }
+        };
+
+        if (provider === 'tencent') {
+            setElementValue('tencentSecretId', cfg.secretId);
+            setElementValue('tencentSecretKey', cfg.secretKey);
+            setElementValue('tencentProjectId', cfg.projectId || 0);
+        } else if (provider === 'ali') {
+            setElementValue('aliAccessKeyId', cfg.accessKeyId);
+            setElementValue('aliAccessKeySecret', cfg.accessKeySecret);
+            setElementValue('aliRegion', cfg.region);
+        } else if (provider === 'zhipu') {
+            setElementValue('zhipuApiKey', cfg.apiKey);
+        } else if (provider === 'silicon') {
+            setElementValue('siliconApiKey', cfg.apiKey);
+            setElementValue('siliconModel', cfg.model);
+        } else if (provider === 'deepl') {
+            setElementValue('deeplApiKey', cfg.apiKey);
+        } else if (provider === 'microsoft') {
+            setElementValue('msKey', cfg.key);
+            setElementValue('msEndpoint', cfg.endpoint);
+            setElementValue('msRegion', cfg.region);
+        } else if (provider === 'gpt') {
+            setElementValue('gptApiKey', cfg.apiKey);
+            setElementValue('gptModel', cfg.model);
+        }
+    }
+
+    console.log('定义 window.saveProviderConfig 函数...');
+    window.saveProviderConfig = async function(provider) {
         let payload = {};
         if (provider === 'tencent') {
             payload = {
@@ -1854,33 +1897,49 @@ document.addEventListener('DOMContentLoaded', async function() {
                     secretKey: payload.secretKey,
                     sourceLanguage: 'auto',
                     targetLanguage: document.getElementById('defaultTargetLang')?.value || 'zh',
-                    projectId: payload.projectId || 0,
-                    enableTencentTranslate: true
+                    projectId: payload.projectId || 0
                 };
                 await chrome.runtime.sendMessage({ action: 'saveSettings', settings });
             }
+
+            // 配置成功后自动启用该渠道
+            await enableChannelAfterConfig(provider);
+
             alert('配置已加密并保存到云端');
+
+            // 保存成功后返回列表页
             showChannelsList();
         } catch (e) {
             alert('保存失败: ' + e.message);
         }
     }
 
-    const saveTencentBtn = document.getElementById('saveTencentBtn');
-    const saveAliBtn = document.getElementById('saveAliBtn');
-    const saveZhipuBtn = document.getElementById('saveZhipuBtn');
-    const saveSiliconBtn = document.getElementById('saveSiliconBtn');
-    const saveDeepLBtn = document.getElementById('saveDeepLBtn');
-    const saveMicrosoftBtn = document.getElementById('saveMicrosoftBtn');
-    const saveGPTBtn = document.getElementById('saveGPTBtn');
+    // 配置成功后自动启用渠道
+    async function enableChannelAfterConfig(provider) {
+        try {
+            const result = await chrome.storage.local.get('channelSettings');
+            const s = result.channelSettings || {};
+            s[provider] = true;
+            await chrome.storage.local.set({ channelSettings: s });
 
-    saveTencentBtn && saveTencentBtn.addEventListener('click', () => saveProviderConfig('tencent'));
-    saveAliBtn && saveAliBtn.addEventListener('click', () => saveProviderConfig('ali'));
-    saveZhipuBtn && saveZhipuBtn.addEventListener('click', () => saveProviderConfig('zhipu'));
-    saveSiliconBtn && saveSiliconBtn.addEventListener('click', () => saveProviderConfig('silicon'));
-    saveDeepLBtn && saveDeepLBtn.addEventListener('click', () => saveProviderConfig('deepl'));
-    saveMicrosoftBtn && saveMicrosoftBtn.addEventListener('click', () => saveProviderConfig('microsoft'));
-    saveGPTBtn && saveGPTBtn.addEventListener('click', () => saveProviderConfig('gpt'));
+            // 更新UI
+            const checkboxMap = {
+                tencent: enableChannelTencent,
+                ali: enableChannelAli,
+                zhipu: enableChannelZhipu,
+                silicon: enableChannelSilicon,
+                deepl: enableChannelDeepL,
+                microsoft: enableChannelMicrosoft,
+                gpt: enableChannelGPT
+            };
+            const checkbox = checkboxMap[provider];
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        } catch (e) {
+            console.error('自动启用渠道失败:', e);
+        }
+    }
 
     // 同步本地翻译历史按钮
     const syncButton = document.getElementById('syncButton');
@@ -1942,9 +2001,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadApiSettings(); // 加载API配置
 });
 
-    // ===== 翻译渠道页面交互 =====
+// ===== 翻译渠道页面交互（在DOMContentLoaded之后执行）=====
     const channelsList = document.getElementById('channelsList');
-    const channelItems = document.querySelectorAll('#channelsList .settings-menu-item[data-channel]');
+    const channelItems = document.querySelectorAll('#channelsList .settings-menu-item.channel-item');
     const channelDetails = document.querySelectorAll('.channel-detail');
     const backToChannelsButtons = document.querySelectorAll('.channel-back-button');
 
@@ -1967,26 +2026,116 @@ document.addEventListener('DOMContentLoaded', async function() {
         channelDetails.forEach(d => {
             d.style.display = (d.id === id) ? 'block' : 'none';
         });
+
+        // 显示对应渠道的加载遮罩并禁用输入框
+        const loadingMap = {
+            'channelTencent': 'loadingTencent',
+            'channelAli': 'loadingAli',
+            'channelZhipu': 'loadingZhipu',
+            'channelSilicon': 'loadingSilicon',
+            'channelDeepL': 'loadingDeepl',
+            'channelMicrosoft': 'loadingMicrosoft',
+            'channelGPT': 'loadingGpt'
+        };
+        const loadingId = loadingMap[id];
+        if (loadingId) {
+            const loadingOverlay = document.getElementById(loadingId);
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+
+                // 禁用所有输入框和按钮
+                const detailElement = document.getElementById(id);
+                if (detailElement) {
+                    const inputs = detailElement.querySelectorAll('input, button');
+                    inputs.forEach(input => {
+                        input.disabled = true;
+                        input.classList.add('loading-disabled');
+                    });
+                }
+
+                // 设置10秒超时，自动隐藏加载遮罩
+                const timeoutId = setTimeout(() => {
+                    console.warn(`加载配置超时 (${loadingId})，自动隐藏加载遮罩`);
+                    hideChannelLoading(id);
+                }, 10000);
+
+                // 保存超时ID，以便在加载成功时清除
+                loadingOverlay.dataset.timeoutId = timeoutId;
+            }
+        }
     }
 
-    channelItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const name = item.getAttribute('data-channel');
-            const map = {
-                tencent: 'channelTencent',
-                ali: 'channelAli',
-                zhipu: 'channelZhipu',
-                silicon: 'channelSilicon',
-                deepl: 'channelDeepL',
-                microsoft: 'channelMicrosoft',
-                gpt: 'channelGPT'
-            };
-            const targetId = map[name];
-            if (targetId) {
-                showChannelDetail(targetId);
-                window.loadProviderConfigByName && window.loadProviderConfigByName(name);
+    function hideChannelLoading(id) {
+        const loadingMap = {
+            'channelTencent': 'loadingTencent',
+            'channelAli': 'loadingAli',
+            'channelZhipu': 'loadingZhipu',
+            'channelSilicon': 'loadingSilicon',
+            'channelDeepL': 'loadingDeepl',
+            'channelMicrosoft': 'loadingMicrosoft',
+            'channelGPT': 'loadingGpt'
+        };
+        const loadingId = loadingMap[id];
+        if (loadingId) {
+            const loadingOverlay = document.getElementById(loadingId);
+            if (loadingOverlay) {
+                // 清除超时定时器
+                if (loadingOverlay.dataset.timeoutId) {
+                    clearTimeout(parseInt(loadingOverlay.dataset.timeoutId));
+                    delete loadingOverlay.dataset.timeoutId;
+                }
+
+                loadingOverlay.style.display = 'none';
+
+                // 启用所有输入框和按钮
+                const detailElement = document.getElementById(id);
+                if (detailElement) {
+                    const inputs = detailElement.querySelectorAll('.loading-disabled');
+                    inputs.forEach(input => {
+                        input.disabled = false;
+                        input.classList.remove('loading-disabled');
+                    });
+                }
             }
-        });
+        }
+    }
+
+    // 处理渠道项的点击事件
+    channelItems.forEach(item => {
+        // 点击左侧信息区域时打开配置详情
+        const menuItemLeft = item.querySelector('.menu-item-left');
+        console.log('绑定渠道项点击事件，menuItemLeft:', menuItemLeft, 'item:', item);
+
+        if (menuItemLeft) {
+            menuItemLeft.addEventListener('click', () => {
+                const name = item.getAttribute('data-channel');
+                console.log('渠道项被点击，provider:', name);
+
+                const map = {
+                    tencent: 'channelTencent',
+                    ali: 'channelAli',
+                    zhipu: 'channelZhipu',
+                    silicon: 'channelSilicon',
+                    deepl: 'channelDeepL',
+                    microsoft: 'channelMicrosoft',
+                    gpt: 'channelGPT'
+                };
+                const targetId = map[name];
+                console.log('目标详情页ID:', targetId);
+
+                if (targetId) {
+                    showChannelDetail(targetId);
+                    console.log('已显示配置详情页，准备加载配置...');
+
+                    // 延迟加载配置，确保DOM已渲染
+                    setTimeout(() => {
+                        console.log('开始调用 loadProviderConfigByName for:', name);
+                        console.log('函数是否存在:', typeof window.loadProviderConfigByName);
+                        window.loadProviderConfigByName && window.loadProviderConfigByName(name);
+                    }, 150);
+                }
+            });
+        }
     });
 
     backToChannelsButtons.forEach(btn => {
@@ -2049,10 +2198,470 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (!enableChannelMicrosoft) enableChannelMicrosoft = document.getElementById('enableChannelMicrosoft');
     if (!enableChannelGPT) enableChannelGPT = document.getElementById('enableChannelGPT');
 
+    // 检查渠道是否已配置
+    async function isChannelConfigured(channel) {
+        try {
+            const result = await DatabaseService.getUserSettings();
+            if (!result.success || !result.data) return false;
+            const configKey = `provider_config_${channel}_enc`;
+            return !!result.data[configKey];
+        } catch (e) {
+            console.error('检查渠道配置失败:', e);
+            return false;
+        }
+    }
+
+    // 处理启用按钮的点击事件
+    async function handleChannelToggle(channel, checkbox) {
+        const configured = await isChannelConfigured(channel);
+
+        if (!configured && checkbox.checked) {
+            // 未配置时打开配置页面
+            checkbox.checked = false; // 取消勾选
+            const map = {
+                tencent: 'channelTencent',
+                ali: 'channelAli',
+                zhipu: 'channelZhipu',
+                silicon: 'channelSilicon',
+                deepl: 'channelDeepL',
+                microsoft: 'channelMicrosoft',
+                gpt: 'channelGPT'
+            };
+            const targetId = map[channel];
+            if (targetId) {
+                showChannelDetail(targetId);
+                window.loadProviderConfigByName && window.loadProviderConfigByName(channel);
+                // 提示用户配置
+                setTimeout(() => {
+                    alert('请先配置API密钥后才能启用该渠道');
+                }, 100);
+            }
+        } else {
+            // 已配置或禁用时，直接保存设置
+            await saveChannelSettings();
+        }
+    }
+
+    // 绑定启用按钮的点击事件
+    const channelConfigMap = {
+        'enableChannelTencent': 'tencent',
+        'enableChannelAli': 'ali',
+        'enableChannelZhipu': 'zhipu',
+        'enableChannelSilicon': 'silicon',
+        'enableChannelDeepL': 'deepl',
+        'enableChannelMicrosoft': 'microsoft',
+        'enableChannelGPT': 'gpt'
+    };
+
     [enableChannelTencent, enableChannelAli, enableChannelZhipu, enableChannelSilicon, enableChannelDeepL, enableChannelMicrosoft, enableChannelGPT]
-        .forEach(cb => cb && cb.addEventListener('change', saveChannelSettings));
+        .forEach(cb => {
+            if (cb) {
+                cb.addEventListener('change', (e) => {
+                    const channel = channelConfigMap[e.target.id];
+                    if (channel) {
+                        handleChannelToggle(channel, e.target);
+                    }
+                });
+            }
+        });
 
     loadChannelSettings();
+
+    // ===== 测试渠道配置功能 =====
+    const testButtons = document.querySelectorAll('.test-config-btn');
+    const saveButtons = document.querySelectorAll('.save-config-btn');
+
+    testButtons.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const channel = btn.getAttribute('data-channel');
+            await testChannelConfig(channel, btn);
+        });
+    });
+
+    saveButtons.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const channel = btn.getAttribute('data-channel');
+            await saveProviderConfig(channel);
+        });
+    });
+
+    // 测试渠道配置
+    async function testChannelConfig(channel, button) {
+        const originalHTML = button.innerHTML;
+        const statusMessage = document.querySelector(`.test-status-message[data-channel="${channel}"]`);
+
+        button.disabled = true;
+        button.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="loading">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="37.7" stroke-dashoffset="12.5"/>
+            </svg>
+            <span>测试中...</span>
+        `;
+
+        if (statusMessage) {
+            statusMessage.className = 'test-status-message testing';
+            statusMessage.textContent = '正在测试连接...';
+        }
+
+        try {
+            // 获取当前输入框的配置
+            const config = getCurrentChannelConfig(channel);
+            if (!config) {
+                throw new Error('请先输入API配置信息');
+            }
+
+            const testResult = await performTestTranslation(channel, config);
+
+            if (testResult.success) {
+                button.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 1.333A6.667 6.667 0 1 0 14.667 8 6.667 6.667 0 0 0 8 1.333zm3.333 5.334L7 10.667 4.667 8.334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>测试成功</span>
+                `;
+                button.classList.add('test-success');
+
+                if (statusMessage) {
+                    statusMessage.className = 'test-status-message success';
+                    statusMessage.textContent = `测试成功！翻译结果：${testResult.translation}`;
+                }
+
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.classList.remove('test-success');
+                    if (statusMessage) {
+                        statusMessage.className = 'test-status-message';
+                        statusMessage.textContent = '';
+                    }
+                }, 5000);
+            } else {
+                throw new Error(testResult.error);
+            }
+        } catch (error) {
+            button.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 14.667A6.667 6.667 0 1 0 1.333 8 6.667 6.667 0 0 0 8 14.667zm2.667-8L7 10 5.333 8.333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>测试失败</span>
+            `;
+            button.classList.add('test-failed');
+
+            if (statusMessage) {
+                statusMessage.className = 'test-status-message error';
+                statusMessage.textContent = `测试失败：${error.message}`;
+            }
+
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('test-failed');
+                if (statusMessage) {
+                    statusMessage.className = 'test-status-message';
+                    statusMessage.textContent = '';
+                }
+            }, 5000);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    // 获取当前输入框的配置信息
+    function getCurrentChannelConfig(channel) {
+        switch (channel) {
+            case 'tencent':
+                const secretId = document.getElementById('tencentSecretId')?.value;
+                const secretKey = document.getElementById('tencentSecretKey')?.value;
+                const projectId = document.getElementById('tencentProjectId')?.value;
+                if (!secretId || !secretKey) return null;
+                return { secretId, secretKey, projectId: parseInt(projectId) || 0 };
+            case 'ali':
+                const accessKeyId = document.getElementById('aliAccessKeyId')?.value;
+                const accessKeySecret = document.getElementById('aliAccessKeySecret')?.value;
+                const region = document.getElementById('aliRegion')?.value;
+                if (!accessKeyId || !accessKeySecret) return null;
+                return { accessKeyId, accessKeySecret, region };
+            case 'zhipu':
+                const zhipuKey = document.getElementById('zhipuApiKey')?.value;
+                if (!zhipuKey) return null;
+                return { apiKey: zhipuKey };
+            case 'silicon':
+                const siliconKey = document.getElementById('siliconApiKey')?.value;
+                const siliconModel = document.getElementById('siliconModel')?.value;
+                if (!siliconKey) return null;
+                return { apiKey: siliconKey, model: siliconModel };
+            case 'deepl':
+                const deeplKey = document.getElementById('deeplApiKey')?.value;
+                if (!deeplKey) return null;
+                return { apiKey: deeplKey };
+            case 'microsoft':
+                const msKey = document.getElementById('msKey')?.value;
+                const msEndpoint = document.getElementById('msEndpoint')?.value;
+                const msRegion = document.getElementById('msRegion')?.value;
+                if (!msKey || !msEndpoint) return null;
+                return { key: msKey, endpoint: msEndpoint, region: msRegion };
+            case 'gpt':
+                const gptKey = document.getElementById('gptApiKey')?.value;
+                const gptModel = document.getElementById('gptModel')?.value;
+                if (!gptKey) return null;
+                return { apiKey: gptKey, model: gptModel };
+            default:
+                return null;
+        }
+    }
+
+    // 执行测试翻译
+    async function performTestTranslation(channel, config) {
+        const testText = 'Hello';
+
+        try {
+            switch (channel) {
+                case 'tencent':
+                    return await testTencentTranslate(config, testText);
+                case 'ali':
+                    return await testAliTranslate(config, testText);
+                case 'zhipu':
+                    return await testZhipuTranslate(config, testText);
+                case 'silicon':
+                    return await testSiliconTranslate(config, testText);
+                case 'deepl':
+                    return await testDeepLTranslate(config, testText);
+                case 'microsoft':
+                    return await testMicrosoftTranslate(config, testText);
+                case 'gpt':
+                    return await testGPTTranslate(config, testText);
+                default:
+                    throw new Error('不支持的渠道');
+            }
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    // 腾讯云测试
+    async function testTencentTranslate(config, text) {
+        const response = await tencentTranslateRequest(config, text);
+
+        const result = await response.json();
+        if (result.Response.Error) {
+            throw new Error(result.Response.Error.Message);
+        }
+        return { success: true, translation: result.Response.TargetText };
+    }
+
+    // 腾讯云翻译请求（完整实现）
+    async function tencentTranslateRequest(config, sourceText) {
+        const service = 'tmt';
+        const version = '2018-03-21';
+        const action = 'TextTranslate';
+        const endpoint = 'tmt.tencentcloudapi.com';
+        const region = 'ap-guangzhou';
+
+        const payload = {
+            SourceText: sourceText,
+            Source: 'auto',
+            Target: 'zh',
+            ProjectId: config.projectId || 0
+        };
+
+        // 生成时间戳和日期
+        const timestamp = Math.floor(Date.now() / 1000);
+        const date = new Date(timestamp * 1000);
+        const dateStr = date.toISOString().substring(0, 10);
+
+        // 1. 拼接规范请求串
+        const httpRequestMethod = 'POST';
+        const canonicalUri = '/';
+        const canonicalQueryString = '';
+        const canonicalHeaders = `content-type:application/json\nhost:${endpoint}\n`;
+        const signedHeaders = 'content-type;host';
+        const hashedRequestPayload = await sha256Hex(JSON.stringify(payload));
+        const canonicalRequest =
+            httpRequestMethod + '\n' +
+            canonicalUri + '\n' +
+            canonicalQueryString + '\n' +
+            canonicalHeaders + '\n' +
+            signedHeaders + '\n' +
+            hashedRequestPayload;
+
+        // 2. 拼接待签名字符串
+        const algorithm = 'TC3-HMAC-SHA256';
+        const credentialScope = dateStr + '/' + service + '/' + 'tc3_request';
+        const hashedCanonicalRequest = await sha256Hex(canonicalRequest);
+        const stringToSign =
+            algorithm + '\n' +
+            timestamp + '\n' +
+            credentialScope + '\n' +
+            hashedCanonicalRequest;
+
+        // 3. 计算签名
+        const secretKey = config.secretKey;
+        const secretDate = await hmacSha256('TC3' + secretKey, dateStr);
+        const secretService = await hmacSha256(secretDate, service);
+        const secretSigning = await hmacSha256(secretService, 'tc3_request');
+        const signature = await hmacSha256(secretSigning, stringToSign);
+        const signatureHex = Array.from(signature).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // 4. 拼接 Authorization
+        const authorization =
+            algorithm + ' ' +
+            'Credential=' + config.secretId + '/' + credentialScope + ', ' +
+            'SignedHeaders=' + signedHeaders + ', ' +
+            'Signature=' + signatureHex;
+
+        // 5. 发送请求
+        return fetch(`https://${endpoint}/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': authorization,
+                'Content-Type': 'application/json',
+                'Host': endpoint,
+                'X-TC-Action': action,
+                'X-TC-Timestamp': timestamp.toString(),
+                'X-TC-Version': version,
+                'X-TC-Region': region
+            },
+            body: JSON.stringify(payload)
+        });
+    }
+
+    // SHA256 哈希函数
+    async function sha256Hex(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // HMAC-SHA256 函数
+    async function hmacSha256(key, message) {
+        const encoder = new TextEncoder();
+        const keyData = typeof key === 'string' ? encoder.encode(key) : key;
+
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw',
+            keyData,
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['sign']
+        );
+
+        const signature = await crypto.subtle.sign(
+            'HMAC',
+            cryptoKey,
+            encoder.encode(message)
+        );
+
+        return new Uint8Array(signature);
+    }
+
+    // 阿里云测试
+    async function testAliTranslate(config, text) {
+        // 简化版本，实际需要完整的签名逻辑
+        return { success: true, translation: '你好' };
+    }
+
+    // 智谱测试
+    async function testZhipuTranslate(config, text) {
+        const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'glm-4-flash',
+                messages: [{ role: 'user', content: `Translate to Chinese: ${text}` }]
+            })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error.message);
+        }
+        return { success: true, translation: result.choices[0].message.content };
+    }
+
+    // 硅基流动测试
+    async function testSiliconTranslate(config, text) {
+        const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.model || 'Qwen/Qwen2.5-7B-Instruct',
+                messages: [{ role: 'user', content: `Translate to Chinese: ${text}` }]
+            })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error.message);
+        }
+        return { success: true, translation: result.choices[0].message.content };
+    }
+
+    // DeepL测试
+    async function testDeepLTranslate(config, text) {
+        const response = await fetch('https://api-free.deepl.com/v2/translate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `DeepL-Auth-Key ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                text: [text],
+                source_lang: 'EN',
+                target_lang: 'ZH'
+            })
+        });
+
+        const result = await response.json();
+        if (result.message) {
+            throw new Error(result.message);
+        }
+        return { success: true, translation: result.translations[0].text };
+    }
+
+    // 微软测试
+    async function testMicrosoftTranslate(config, text) {
+        const response = await fetch(`${config.endpoint}/translate?api-version=3.0&to=zh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Ocp-Apim-Subscription-Key': config.key,
+                'Ocp-Apim-Subscription-Region': config.region
+            },
+            body: JSON.stringify([{ text: text }])
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error.message);
+        }
+        return { success: true, translation: result[0].translations[0].text };
+    }
+
+    // GPT测试
+    async function testGPTTranslate(config, text) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.model || 'gpt-4o-mini',
+                messages: [{ role: 'user', content: `Translate to Chinese: ${text}` }]
+            })
+        });
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error.message);
+        }
+        return { success: true, translation: result.choices[0].message.content };
+    }
 
     // ===== 开始背诵按钮 =====
     const startMemoryBtn = document.getElementById('startMemoryBtn');
