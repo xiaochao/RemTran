@@ -3,6 +3,9 @@ const TENCENT_API_ENDPOINT = 'tmt.tencentcloudapi.com';
 const TENCENT_API_VERSION = '2018-03-21';
 const TENCENT_API_REGION = 'ap-guangzhou';
 
+// 词典缓存
+let dictionaryCache = null;
+
 // 加载配置文件
 try {
     importScripts('config.js');
@@ -493,18 +496,41 @@ function extractChineseFromDefinition(definition) {
   return definition;
 }
 
+// 预加载词典到内存
+async function preloadDictionary() {
+  if (dictionaryCache !== null) {
+    return; // 已经加载过了
+  }
+
+  try {
+    const url = chrome.runtime.getURL('db/result.json');
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      console.error('预加载词典失败:', resp.status);
+      dictionaryCache = {}; // 设置为空对象避免重复尝试
+      return;
+    }
+    dictionaryCache = await resp.json();
+    console.log('词典预加载完成，共', Object.keys(dictionaryCache).length, '个词条');
+  } catch (error) {
+    console.error('预加载词典出错:', error);
+    dictionaryCache = {}; // 设置为空对象避免重复尝试
+  }
+}
+
 // 获取完整词典信息（使用Free Dictionary API）
 async function getDictionaryData(word) {
   try {
+    // 如果词典未加载，先加载
+    if (dictionaryCache === null) {
+      await preloadDictionary();
+    }
+
     const key = word.trim().toLowerCase();
     if (!key || key.split(/\s+/).length > 3) return null;
 
-    const url = chrome.runtime.getURL('db/result.json');
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
-    const dict = await resp.json();
-
-    const entry = dict[key];
+    // 直接从缓存中查询
+    const entry = dictionaryCache[key];
     if (!entry) return null;
 
     const us = entry.usphone || null;
@@ -695,4 +721,9 @@ async function getSettings() {
 // 插件安装时初始化
 chrome.runtime.onInstalled.addListener(() => {
   console.log('腾讯云翻译插件已安装');
+  // 预加载词典
+  preloadDictionary();
 });
+
+// 插件启动时也要预加载词典（处理浏览器重启的情况）
+preloadDictionary();
