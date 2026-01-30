@@ -208,22 +208,34 @@ function mergeTranslationResults(originalText, translations, detectedLanguage) {
       // Dictionary API结果 - 只存储词典数据，不作为翻译结果
       result.dictionaryData = trans.data;
       // Dictionary API 不提供中文翻译，只提供英文定义
-    } else if (trans.source === 'tencent' && trans.data) {
-      // 腾讯云翻译结果
-      const translation = trans.data.targetText.trim();
-      if (translation && !translationTexts.has(translation.toLowerCase())) {
-        translationTexts.add(translation.toLowerCase());
+    } else {
+      // 处理所有翻译渠道的结果
+      const translation = trans.data?.targetText || trans.data?.translation || '';
+      const trimmed = translation.trim();
+      if (trimmed && !translationTexts.has(trimmed.toLowerCase())) {
+        translationTexts.add(trimmed.toLowerCase());
         result.translations.push({
-          source: 'tencent',
-          text: translation
+          source: trans.source,
+          text: trimmed
         });
       }
     }
   }
 
   if (result.translations.length > 0) {
-    const tencentTrans = result.translations.find(t => t.source === 'tencent');
-    result.translation = tencentTrans ? tencentTrans.text : result.translations[0].text;
+    // 优先使用腾讯云、DeepL等专业翻译服务的结果
+    const priorityOrder = ['deepl', 'tencent', 'ali', 'microsoft', 'zhipu', 'silicon', 'gpt'];
+    for (const source of priorityOrder) {
+      const trans = result.translations.find(t => t.source === source);
+      if (trans) {
+        result.translation = trans.text;
+        break;
+      }
+    }
+    // 如果没有优先渠道，使用第一个结果
+    if (!result.translation && result.translations.length > 0) {
+      result.translation = result.translations[0].text;
+    }
   } else if (result.dictionaryData) {
     if (Array.isArray(result.dictionaryData.translations) && result.dictionaryData.translations.length > 0) {
       result.translation = String(result.dictionaryData.translations[0] || '');
@@ -300,19 +312,153 @@ async function handleTranslation(text) {
 
     const cs = await chrome.storage.local.get('channelSettings');
     const enables = cs.channelSettings || {};
+
+    // 并行调用所有启用的翻译渠道
+    const translationPromises = [];
+
+    // 腾讯云翻译
     if (!dictUsed && enables.tencent && settings.secretId && settings.secretKey) {
-      try {
-        const tencentResult = await translateWithTencent(
-          text,
-          settings.secretId,
-          settings.secretKey,
-          settings.sourceLanguage,
-          settings.targetLanguage,
-          settings.projectId
-        );
-        translations.push({ source: 'tencent', data: tencentResult });
-      } catch (error) {
-        console.error('腾讯云翻译失败:', error);
+      translationPromises.push(
+        (async () => {
+          try {
+            const result = await translateWithTencent(
+              text,
+              settings.secretId,
+              settings.secretKey,
+              settings.sourceLanguage,
+              settings.targetLanguage,
+              settings.projectId
+            );
+            return { source: 'tencent', data: result };
+          } catch (error) {
+            console.error('腾讯云翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // 阿里云翻译
+    if (enables.ali) {
+      translationPromises.push(
+        (async () => {
+          try {
+            const config = await getChannelConfig('ali');
+            if (config.accessKeyId && config.accessKeySecret) {
+              const result = await translateWithAli(text, config, settings.sourceLanguage, settings.targetLanguage);
+              return { source: 'ali', data: result };
+            }
+            return null;
+          } catch (error) {
+            console.error('阿里云翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // DeepL翻译
+    if (enables.deepl) {
+      translationPromises.push(
+        (async () => {
+          try {
+            const config = await getChannelConfig('deepl');
+            if (config.apiKey) {
+              const result = await translateWithDeepL(text, config, settings.sourceLanguage, settings.targetLanguage);
+              return { source: 'deepl', data: result };
+            }
+            return null;
+          } catch (error) {
+            console.error('DeepL翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // 微软Azure翻译
+    if (enables.microsoft) {
+      translationPromises.push(
+        (async () => {
+          try {
+            const config = await getChannelConfig('microsoft');
+            if (config.key && config.endpoint) {
+              const result = await translateWithMicrosoft(text, config, settings.sourceLanguage, settings.targetLanguage);
+              return { source: 'microsoft', data: result };
+            }
+            return null;
+          } catch (error) {
+            console.error('微软Azure翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // GPT翻译
+    if (enables.gpt) {
+      translationPromises.push(
+        (async () => {
+          try {
+            const config = await getChannelConfig('gpt');
+            if (config.apiKey) {
+              const result = await translateWithGPT(text, config, settings.sourceLanguage, settings.targetLanguage);
+              return { source: 'gpt', data: result };
+            }
+            return null;
+          } catch (error) {
+            console.error('GPT翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // 智谱AI翻译
+    if (enables.zhipu) {
+      translationPromises.push(
+        (async () => {
+          try {
+            const config = await getChannelConfig('zhipu');
+            if (config.apiKey) {
+              const result = await translateWithZhipu(text, config, settings.sourceLanguage, settings.targetLanguage);
+              return { source: 'zhipu', data: result };
+            }
+            return null;
+          } catch (error) {
+            console.error('智谱AI翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // 硅基流动翻译
+    if (enables.silicon) {
+      translationPromises.push(
+        (async () => {
+          try {
+            const config = await getChannelConfig('silicon');
+            if (config.apiKey) {
+              const result = await translateWithSilicon(text, config, settings.sourceLanguage, settings.targetLanguage);
+              return { source: 'silicon', data: result };
+            }
+            return null;
+          } catch (error) {
+            console.error('硅基流动翻译失败:', error);
+            return null;
+          }
+        })()
+      );
+    }
+
+    // 等待所有翻译完成
+    if (translationPromises.length > 0) {
+      const results = await Promise.all(translationPromises);
+      for (const result of results) {
+        if (result) {
+          translations.push(result);
+        }
       }
     }
 
@@ -727,3 +873,399 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // 插件启动时也要预加载词典（处理浏览器重启的情况）
 preloadDictionary();
+
+// ===== 翻译渠道配置获取 =====
+
+// 获取指定渠道的配置
+async function getChannelConfig(channel) {
+  const result = await chrome.storage.local.get(`channelConfig_${channel}`);
+  return result[`channelConfig_${channel}`] || {};
+}
+
+// ===== 语言代码转换 =====
+
+// 将内部语言代码转换为各API所需的语言代码
+function convertLanguageCode(code, targetApi) {
+  const langMap = {
+    // DeepL语言代码
+    deepl: {
+      'zh': 'ZH',
+      'zh-CN': 'ZH',
+      'en': 'EN',
+      'ja': 'JA',
+      'ko': 'KO',
+      'fr': 'FR',
+      'de': 'DE',
+      'es': 'ES',
+      'ru': 'RU'
+    },
+    // 微软Azure语言代码
+    microsoft: {
+      'zh': 'zh-Hans',
+      'zh-CN': 'zh-Hans',
+      'zh-TW': 'zh-Hant',
+      'en': 'en',
+      'ja': 'ja',
+      'ko': 'ko',
+      'fr': 'fr',
+      'de': 'de',
+      'es': 'es',
+      'ru': 'ru'
+    },
+    // 阿里云语言代码
+    ali: {
+      'zh': 'zh',
+      'en': 'en',
+      'ja': 'ja',
+      'ko': 'ko',
+      'fr': 'fr',
+      'de': 'de',
+      'es': 'es',
+      'ru': 'ru'
+    },
+    // 通用语言代码（GPT、智谱、硅基流动等使用）
+    general: {
+      'zh': 'Chinese',
+      'zh-CN': 'Simplified Chinese',
+      'zh-TW': 'Traditional Chinese',
+      'en': 'English',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'fr': 'French',
+      'de': 'German',
+      'es': 'Spanish',
+      'ru': 'Russian'
+    }
+  };
+
+  if (targetApi === 'deepl' || targetApi === 'microsoft' || targetApi === 'ali') {
+    return langMap[targetApi]?.[code] || code;
+  }
+  // GPT、智谱、硅基流动等使用自然语言描述
+  return langMap.general?.[code] || code;
+}
+
+// ===== 阿里云翻译 =====
+
+// 生成阿里云API签名
+async function generateAliSignature(accessKeySecret, method, path, queries) {
+  const encoder = new TextEncoder();
+
+  // 构造规范查询字符串
+  const sortedQueries = Object.keys(queries).sort();
+  const canonicalQueryString = sortedQueries.map(key => `${encodeURIComponent(key)}=${encodeURIComponent(queries[key])}`).join('&');
+
+  // 构造待签名字符串
+  const stringToSign = `${method}&${encodeURIComponent('/')}&${encodeURIComponent(canonicalQueryString)}`;
+
+  // 计算签名
+  const key = `${accessKeySecret}&`;
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(key),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    encoder.encode(stringToSign)
+  );
+
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
+
+// 调用阿里云翻译API
+async function translateWithAli(text, config, sourceLang = 'auto', targetLang = 'zh') {
+  const accessKeyId = config.accessKeyId;
+  const accessKeySecret = config.accessKeySecret;
+  const region = config.region || 'cn-shanghai';
+
+  const commonParams = {
+    'AccessKeyId': accessKeyId,
+    'Action': 'TranslateGeneral',
+    'FormatType': 'text',
+    'Version': '2018-10-12',
+    'SignatureMethod': 'HMAC-SHA1',
+    'SignatureVersion': '1.0',
+    'SignatureNonce': Math.random().toString(36).substring(2),
+    'Timestamp': new Date().toISOString(),
+    'SourceLanguage': convertLanguageCode(sourceLang, 'ali'),
+    'TargetLanguage': convertLanguageCode(targetLang, 'ali'),
+    'SourceText': text,
+    'FormatType': 'text'
+  };
+
+  const signature = await generateAliSignature(accessKeySecret, 'GET', '/', commonParams);
+  commonParams['Signature'] = signature;
+
+  const url = `https://mt.aliyuncs.com/?${Object.keys(commonParams).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(commonParams[key])}`).join('&')}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`阿里云API请求失败 (HTTP ${response.status})`);
+  }
+
+  const data = await response.json();
+
+  if (data.Code) {
+    throw new Error(`阿里云翻译失败 [${data.Code}]: ${data.Message || '未知错误'}`);
+  }
+
+  return {
+    targetText: data.Data.Translated,
+    source: data.Data.SourceLanguage,
+    target: data.Data.TargetLanguage
+  };
+}
+
+// ===== DeepL翻译 =====
+
+async function translateWithDeepL(text, config, sourceLang = 'auto', targetLang = 'zh') {
+  const apiKey = config.apiKey;
+  const apiUrl = 'https://api-free.deepl.com/v2/translate'; // 免费版API，付费版需改为 api.deepl.com
+
+  const source = sourceLang === 'auto' ? '' : convertLanguageCode(sourceLang, 'deepl');
+  const target = convertLanguageCode(targetLang, 'deepl');
+
+  const response = await fetch(`${apiUrl}?auth_key=${apiKey}&text=${encodeURIComponent(text)}&source_lang=${source}&target_lang=${target}`, {
+    method: 'POST'
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`DeepL API请求失败 (HTTP ${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.message) {
+    throw new Error(`DeepL翻译失败: ${data.message}`);
+  }
+
+  return {
+    targetText: data.translations[0]?.text || '',
+    source: data.translations[0]?.detected_source_language || sourceLang,
+    target: target
+  };
+}
+
+// ===== 微软Azure翻译 =====
+
+async function translateWithMicrosoft(text, config, sourceLang = 'auto', targetLang = 'zh') {
+  const key = config.key;
+  const endpoint = config.endpoint || 'https://api.cognitive.microsofttranslator.com';
+  const region = config.region || 'eastasia';
+
+  const source = sourceLang === 'auto' ? '' : convertLanguageCode(sourceLang, 'microsoft');
+  const target = convertLanguageCode(targetLang, 'microsoft');
+
+  const url = `${endpoint}/translate?api-version=3.0&to=${target}${source ? `&from=${source}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key': key,
+      'Ocp-Apim-Subscription-Region': region,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify([{ 'Text': text }])
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`微软Azure API请求失败 (HTTP ${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(`微软Azure翻译失败 [${data.error.code}]: ${data.error.message}`);
+  }
+
+  return {
+    targetText: data[0]?.translations[0]?.text || '',
+    source: data[0]?.detectedLanguage?.language || sourceLang,
+    target: target
+  };
+}
+
+// ===== GPT翻译 =====
+
+async function translateWithGPT(text, config, sourceLang = 'auto', targetLang = 'zh') {
+  const apiKey = config.apiKey;
+  const model = config.model || 'gpt-4o-mini';
+  const apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+  const sourceLanguage = convertLanguageCode(sourceLang, 'general');
+  const targetLanguage = convertLanguageCode(targetLang, 'general');
+
+  const prompt = sourceLang === 'auto'
+    ? `Translate the following text to ${targetLanguage}. Only return the translated text, no explanations: ${text}`
+    : `Translate the following ${sourceLanguage} text to ${targetLanguage}. Only return the translated text, no explanations: ${text}`;
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: 'You are a professional translator. Translate the given text accurately and naturally.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GPT API请求失败 (HTTP ${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(`GPT翻译失败 [${data.error.code}]: ${data.error.message}`);
+  }
+
+  return {
+    targetText: data.choices[0]?.message?.content?.trim() || '',
+    source: sourceLang,
+    target: targetLang
+  };
+}
+
+// ===== 智谱AI翻译 =====
+
+async function translateWithZhipu(text, config, sourceLang = 'auto', targetLang = 'zh') {
+  const apiKey = config.apiKey;
+  const apiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+
+  const sourceLanguage = convertLanguageCode(sourceLang, 'general');
+  const targetLanguage = convertLanguageCode(targetLang, 'general');
+
+  const prompt = sourceLang === 'auto'
+    ? `将以下文本翻译成${targetLanguage}，只返回翻译结果，不要有任何解释：${text}`
+    : `将以下${sourceLanguage}文本翻译成${targetLanguage}，只返回翻译结果，不要有任何解释：${text}`;
+
+  // 生成JWT token（智谱API需要）
+  const [id, secret] = apiKey.split('.');
+  if (!id || !secret) {
+    throw new Error('智谱API Key格式错误');
+  }
+
+  const timestamp = Date.now();
+  const payload = {
+    api_key: id,
+    exp: timestamp + 3600 * 1000,
+    timestamp: timestamp
+  };
+
+  const encoder = new TextEncoder();
+  const header = btoa(JSON.stringify({ alg: 'HS256', sign_type: 'SIGN' }));
+  const encodedPayload = btoa(JSON.stringify(payload));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    encoder.encode(`${header}.${encodedPayload}`)
+  );
+
+  const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  const token = `${header}.${encodedPayload}.${signatureBase64}`;
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'glm-4-flash',
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`智谱AI API请求失败 (HTTP ${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(`智谱AI翻译失败 [${data.error.code}]: ${data.error.message}`);
+  }
+
+  return {
+    targetText: data.choices[0]?.message?.content?.trim() || '',
+    source: sourceLang,
+    target: targetLang
+  };
+}
+
+// ===== 硅基流动翻译 =====
+
+async function translateWithSilicon(text, config, sourceLang = 'auto', targetLang = 'zh') {
+  const apiKey = config.apiKey;
+  const model = config.model || 'Qwen/Qwen2.5-7B-Instruct';
+  const apiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
+
+  const sourceLanguage = convertLanguageCode(sourceLang, 'general');
+  const targetLanguage = convertLanguageCode(targetLang, 'general');
+
+  const prompt = sourceLang === 'auto'
+    ? `将以下文本翻译成${targetLanguage}，只返回翻译结果，不要有任何解释：${text}`
+    : `将以下${sourceLanguage}文本翻译成${targetLanguage}，只返回翻译结果，不要有任何解释：${text}`;
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`硅基流动API请求失败 (HTTP ${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.error) {
+    throw new Error(`硅基流动翻译失败 [${data.error.code}]: ${data.error.message}`);
+  }
+
+  return {
+    targetText: data.choices[0]?.message?.content?.trim() || '',
+    source: sourceLang,
+    target: targetLang
+  };
+}

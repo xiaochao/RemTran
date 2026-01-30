@@ -1905,12 +1905,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             // 配置成功后自动启用该渠道
             await enableChannelAfterConfig(provider);
 
-            alert('配置已加密并保存到云端');
-
             // 保存成功后返回列表页
             showChannelsList();
         } catch (e) {
-            alert('保存失败: ' + e.message);
+            console.error('保存配置失败:', e);
         }
     }
 
@@ -2231,10 +2229,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (targetId) {
                 showChannelDetail(targetId);
                 window.loadProviderConfigByName && window.loadProviderConfigByName(channel);
-                // 提示用户配置
-                setTimeout(() => {
-                    alert('请先配置API密钥后才能启用该渠道');
-                }, 100);
             }
         } else {
             // 已配置或禁用时，直接保存设置
