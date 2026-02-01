@@ -2,6 +2,9 @@
 let tooltipElement = null;
 let currentAudioElement = null;
 
+// 初始化日志
+console.log('[content.js] Content script loaded successfully! 双击任意单词即可翻译');
+
 // 检查扩展上下文是否有效
 function isExtensionContextValid() {
   try {
@@ -68,10 +71,15 @@ function shouldSkipTranslation(text) {
     return true;
   }
 
-  // 6. 检查是否包含数字（新规则：如果文本中包含数字，跳过翻译）
-  // 这样可以过滤掉类似 "test123", "hello 2024", "word2" 这样的内容
-  if (/\d/.test(trimmedText)) {
-    console.log('跳过翻译：包含数字');
+  // 6. 检查是否包含数字（宽松规则：只有纯数字或以数字为主才跳过）
+    // 如果是纯数字，跳过
+    if (/^\d+(\.\d+)?$/.test(trimmedText)) {
+    console.log('跳过翻译：纯数字');
+    return true;
+  }
+  // 如果是数字+符号的组合（如版本号、坐标等），跳过
+  if (/^[\d\s.,\-:]+$/.test(trimmedText)) {
+    console.log('跳过翻译：数字和符号组合');
     return true;
   }
 
@@ -101,6 +109,8 @@ function shouldSkipTranslation(text) {
 document.addEventListener('dblclick', async (event) => {
   const selectedText = window.getSelection().toString().trim();
 
+  console.log('[content.js] 双击事件触发，选中文本:', selectedText);
+
   if (selectedText) {
     // 检查扩展上下文
     if (!isExtensionContextValid()) {
@@ -110,56 +120,42 @@ document.addEventListener('dblclick', async (event) => {
 
     // 检查是否应该跳过翻译（纯数字、特殊字符、单个字符等）
     if (shouldSkipTranslation(selectedText)) {
-      console.log('选中文本包含特殊字符或不需要翻译，跳过');
+      console.log('[content.js] 选中文本被跳过，原因：包含特殊字符或不需要翻译');
       return;
     }
 
     try {
-      // 获取设置以确定目标语言
-      const settingsResponse = await chrome.runtime.sendMessage({
-        action: 'getSettings'
-      });
-
-      if (!settingsResponse.success) {
-        console.error('获取设置失败:', settingsResponse.error);
-        return;
-      }
-
-      const settings = settingsResponse.settings;
-      const targetLanguage = settings.targetLanguage || 'zh';
-
-      // 检测选中文本的语言
-      const detectedLanguage = detectLanguage(selectedText);
-
-      // 如果检测到的语言与目标语言相同，不显示翻译窗口
-      if (detectedLanguage === targetLanguage) {
-        console.log(`选中文本语言 (${detectedLanguage}) 与目标语言 (${targetLanguage}) 相同，跳过翻译`);
-        return;
-      }
+      console.log('[content.js] 开始翻译流程...');
 
       // 移除旧的提示框
       removeTooltip();
 
       // 创建加载中的提示框
+      console.log('[content.js] 创建加载中提示框...');
       createTooltip(event.pageX, event.pageY, selectedText, true);
 
       // 发送消息给background script进行翻译
+      console.log('[content.js] 发送翻译请求到background...');
       const response = await chrome.runtime.sendMessage({
         action: 'translate',
         text: selectedText
       });
 
+      console.log('[content.js] 收到background响应:', response);
+
       if (response.success) {
         // 显示翻译结果
+        console.log('[content.js] 翻译成功，显示结果');
         updateTooltip(response.data);
       } else {
+        console.error('[content.js] 翻译失败:', response.error);
         updateTooltip({
           translation: '翻译失败: ' + response.error,
           original: selectedText
         });
       }
     } catch (error) {
-      console.error('翻译错误:', error);
+      console.error('[content.js] 翻译错误:', error);
 
       // 检查是否是扩展上下文失效
       if (!isExtensionContextValid() || error.message.includes('Extension context invalidated')) {
@@ -312,7 +308,8 @@ function updateTooltip(data) {
       html += '<div class="translations-list">';
 
       data.translations.forEach((trans, index) => {
-        const sourceName = trans.source === 'dictionary' ? '词典' : trans.source === 'tencent' ? '腾讯云' : trans.source;
+        // 优先使用 sourceName，如果没有则使用 source
+        const sourceName = trans.sourceName || trans.source || '未知';
         html += `
           <div class="translation-item">
             <span class="translation-source">[${escapeHtml(sourceName)}]</span>
@@ -367,7 +364,8 @@ function updateTooltip(data) {
       html += '<div class="translations-list">';
 
       data.translations.forEach((trans, index) => {
-        const sourceName = trans.source === 'dictionary' ? '词典' : trans.source === 'tencent' ? '腾讯云' : trans.source;
+        // 优先使用 sourceName，如果没有则使用 source
+        const sourceName = trans.sourceName || trans.source || '未知';
         html += `
           <div class="translation-item">
             <span class="translation-source">[${escapeHtml(sourceName)}]</span>
@@ -433,19 +431,63 @@ function bindTooltipEvents() {
   });
 }
 
+// 确保离屏文档已创建
+async function ensureOffscreenDocument() {
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('src/offscreen/offscreen.html')]
+  });
+
+  if (existingContexts.length > 0) {
+    return;
+  }
+
+  await chrome.offscreen.createDocument({
+    url: chrome.runtime.getURL('src/offscreen/offscreen.html'),
+    reasons: ['AUDIO_PLAYBACK'],
+    justification: '播放有道词典音频，绕过页面 CSP 限制'
+  });
+}
+
 // 播放音频
-function playAudio(url) {
+async function playAudio(url) {
   // 停止当前播放的音频
   if (currentAudioElement) {
     currentAudioElement.pause();
     currentAudioElement = null;
   }
 
-  // 创建新的音频元素
-  currentAudioElement = new Audio(url);
-  currentAudioElement.play().catch(error => {
-    console.error('播放音频失败:', error);
-  });
+  try {
+    // 方案1: 尝试直接播放（在没有 CSP 限制的页面有效）
+    currentAudioElement = new Audio(url);
+    await currentAudioElement.play();
+  } catch (directError) {
+    console.log('直接播放失败，使用离屏文档播放音频:', directError.message);
+
+    // 方案2: 使用离屏文档播放音频（绕过 CSP 限制）
+    try {
+      // 确保离屏文档已创建
+      await ensureOffscreenDocument();
+
+      // 停止之前的播放
+      chrome.runtime.sendMessage({ action: 'stopAudio' });
+
+      // 在离屏文档中播放音频
+      await chrome.runtime.sendMessage({
+        action: 'playAudio',
+        url: url
+      });
+    } catch (offscreenError) {
+      console.error('离屏文档播放失败:', offscreenError);
+      // 方案3: 使用 chrome.tts 作为后备
+      if (chrome.tts) {
+        const word = url.match(/audio=([^&]+)/)?.[1];
+        if (word) {
+          chrome.tts.speak(word, { lang: 'en-US' });
+        }
+      }
+    }
+  }
 }
 
 // 处理收藏

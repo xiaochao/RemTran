@@ -6,7 +6,8 @@
   "permissions": [
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "offscreen"
   ],
   "host_permissions": [
     "https://tmt.tencentcloudapi.com/*",
@@ -22,10 +23,13 @@
     "https://dict.youdao.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://tmt.tencentcloudapi.com https://api.dictionaryapi.dev https://*.supabase.co https://api.siliconflow.cn https://api-free.deepl.com https://api.deepl.com https://*.cognitive.microsofttranslator.com https://mt.aliyuncs.com https://api.openai.com https://open.bigmodel.cn https://dict.youdao.com"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://tmt.tencentcloudapi.com https://api.dictionaryapi.dev https://*.supabase.co https://api.siliconflow.cn https://api-free.deepl.com https://api.deepl.com https://*.cognitive.microsofttranslator.com https://mt.aliyuncs.com https://api.openai.com https://open.bigmodel.cn https://dict.youdao.com; media-src 'self' https://dict.youdao.com"
   },
   "background": {
     "service_worker": "src/background/background.js"
+  },
+  "offscreen": {
+    "document": "src/offscreen/offscreen.html"
   },
   "content_scripts": [
     {

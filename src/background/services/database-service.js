@@ -170,11 +170,14 @@ const DatabaseService = {
     // 更新用户设置
     async updateUserSettings(settings) {
         try {
+            console.log('[DatabaseService updateUserSettings] 开始更新用户设置:', settings);
             const { data: { user } } = await this.getClient().auth.getUser();
             if (!user) {
+                console.error('[DatabaseService updateUserSettings] 用户未登录');
                 throw new Error('用户未登录');
             }
 
+            console.log('[DatabaseService updateUserSettings] 当前用户:', user.id);
             const { data, error } = await this.getClient()
                 .from('user_settings')
                 .update(settings)
@@ -182,10 +185,14 @@ const DatabaseService = {
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('[DatabaseService updateUserSettings] Supabase更新错误:', error);
+                throw error;
+            }
+            console.log('[DatabaseService updateUserSettings] 更新成功:', data);
             return { success: true, data: data };
         } catch (error) {
-            console.error('更新用户设置失败:', error);
+            console.error('[DatabaseService updateUserSettings] 更新用户设置失败:', error);
             return { success: false, error: error.message };
         }
     },

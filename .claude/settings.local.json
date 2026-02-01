@@ -17,7 +17,22 @@
       "Bash(powershell:*)",
       "Bash(ls:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git pull:*)",
+      "Bash(python3:*)",
+      "Bash(printf:*)",
+      "Bash(grep:*)",
+      "Bash(perl:*)",
+      "Bash(git mv:*)",
+      "WebSearch",
+      "Bash(git config:*)",
+      "Bash(find:*)",
+      "Bash(where:*)"
     ],
     "deny": [],
     "ask": []
