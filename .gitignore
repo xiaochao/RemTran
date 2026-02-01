@@ -53,3 +53,6 @@ coverage/
 # 配置文件（包含敏感信息）
 config.js
 config.local.js
+
+# Claude Code 本地设置（包含用户特定路径）
+.claude/settings.local.json
