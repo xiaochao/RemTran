@@ -32,9 +32,29 @@ function detectLanguage(text) {
   return 'en';
 }
 
+// 检查是否是英文单词
+function isEnglishWord(text) {
+  const trimmedText = text.trim();
+
+  // 允许的英文单词模式：
+  // 1. 纯英文字母（可以包含大写和小写）
+  // 2. 可以包含连字符（如 well-known, state-of-the-art）
+  // 3. 可以包含撇号（如 don't, it's, Mary's）
+  // 4. 不包含空格（单个单词）
+  const englishWordPattern = /^[a-zA-Z]+(?:[-'][a-zA-Z]+)*$/;
+
+  return englishWordPattern.test(trimmedText);
+}
+
 // 检查是否应该跳过翻译
 function shouldSkipTranslation(text) {
   const trimmedText = text.trim();
+
+  // 0. 检查是否是英文单词（如果不是英文单词，跳过翻译）
+  if (!isEnglishWord(trimmedText)) {
+    console.log('跳过翻译：不是英文单词');
+    return true;
+  }
 
   // 1. 检查是否全是数字（包括小数点）
   if (/^[\d\s.,]+$/.test(trimmedText.replace(/\s/g, ''))) {
