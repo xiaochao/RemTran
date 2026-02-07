@@ -240,31 +240,6 @@
                     </svg>
                 </div>
 
-                <div class="settings-menu-item" data-target="extensionSettings">
-                    <div class="menu-item-left">
-                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                            <path d="M8 3v14M3 8h14" stroke="currentColor" stroke-width="1.5"/>
-                        </svg>
-                        <span class="menu-item-title">扩展功能</span>
-                    </div>
-                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </div>
-
-                <div class="settings-menu-item" data-target="displaySettings">
-                    <div class="menu-item-left">
-                        <svg class="menu-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="currentColor" stroke-width="1.5"/>
-                            <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
-                        </svg>
-                        <span class="menu-item-title">显示设置</span>
-                    </div>
-                    <svg class="menu-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </div>
 
                 <div class="settings-menu-item" data-target="memorySettings">
                     <div class="menu-item-left">
@@ -638,6 +613,17 @@
                         </select>
                     </div>
 
+                    <div class="setting-item-compact setting-item-vertical">
+                        <div class="setting-item-row">
+                            <label class="setting-label-title">显示翻译按钮</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="showTranslateButton" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <small class="setting-description">选中文本时显示翻译按钮</small>
+                    </div>
+
                     <div class="setting-item-compact">
                         <label class="setting-label-title">自动翻译</label>
                         <label class="toggle-switch">
@@ -646,57 +632,6 @@
                         </label>
                     </div>
 
-                </div>
-            </div>
-
-            <!-- 扩展功能详情页 -->
-            <div class="settings-detail" id="extensionSettings" style="display: none;">
-                <div class="detail-header">
-                    <button class="back-button">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                    </button>
-                    <span class="detail-title">扩展功能</span>
-                </div>
-                <div class="detail-content">
-                    <div class="setting-item-compact">
-                        <label class="setting-label-title">划词翻译</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="selectionTranslate" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="setting-item-compact">
-                        <label class="setting-label-title">快捷键翻译</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="shortcutTranslate" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="setting-item-compact">
-                        <label class="setting-label-title">自动检测语言</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="autoDetectLanguage" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 显示设置详情页 -->
-            <div class="settings-detail" id="displaySettings" style="display: none;">
-                <div class="detail-header">
-                    <button class="back-button">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                    </button>
-                    <span class="detail-title">显示设置</span>
-                </div>
-                <div class="detail-content">
                     <div class="setting-item-compact">
                         <label class="setting-label-title">显示音标</label>
                         <label class="toggle-switch">
@@ -712,6 +647,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+
                 </div>
             </div>
 

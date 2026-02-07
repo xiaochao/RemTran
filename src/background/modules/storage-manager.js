@@ -8,13 +8,30 @@ async function getSettings() {
         secretKey: '',
         sourceLanguage: 'auto',
         targetLanguage: 'zh',
-        projectId: 0
+        projectId: 0,
+        showTranslateButton: true
     };
 }
 
 // 保存设置
 async function saveSettings(settings) {
     await chrome.storage.local.set({ settings });
+
+    // 通知所有标签页设置已改变
+    try {
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+            if (tab.id && tab.url && (tab.url.startsWith('http:') || tab.url.startsWith('https:'))) {
+                try {
+                    await chrome.tabs.sendMessage(tab.id, { action: 'settingsChanged' });
+                } catch (error) {
+                    // 忽略无法发送消息的标签页
+                }
+            }
+        }
+    } catch (error) {
+        console.error('通知标签页设置改变失败:', error);
+    }
 }
 
 // 获取翻译历史

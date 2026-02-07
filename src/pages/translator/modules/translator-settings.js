@@ -5,9 +5,7 @@ window.TranslatorSettings = {
     elements: {
         defaultTargetLangSelect: null,
         autoTranslateCheckbox: null,
-        selectionTranslateCheckbox: null,
-        shortcutTranslateCheckbox: null,
-        autoDetectLanguageCheckbox: null,
+        showTranslateButtonCheckbox: null,
         showPhoneticCheckbox: null,
         showExamplesCheckbox: null,
         memoryIntervalInput: null,
@@ -28,17 +26,11 @@ window.TranslatorSettings = {
             if (this.elements.defaultTargetLangSelect) {
                 this.elements.defaultTargetLangSelect.value = settings.default_target_lang || 'zh';
             }
+            if (this.elements.showTranslateButtonCheckbox) {
+                this.elements.showTranslateButtonCheckbox.checked = settings.show_translate_button !== false;
+            }
             if (this.elements.autoTranslateCheckbox) {
                 this.elements.autoTranslateCheckbox.checked = settings.auto_translate || false;
-            }
-            if (this.elements.selectionTranslateCheckbox) {
-                this.elements.selectionTranslateCheckbox.checked = settings.selection_translate !== false;
-            }
-            if (this.elements.shortcutTranslateCheckbox) {
-                this.elements.shortcutTranslateCheckbox.checked = settings.shortcut_translate !== false;
-            }
-            if (this.elements.autoDetectLanguageCheckbox) {
-                this.elements.autoDetectLanguageCheckbox.checked = settings.auto_detect_language !== false;
             }
             if (this.elements.showPhoneticCheckbox) {
                 this.elements.showPhoneticCheckbox.checked = settings.show_phonetic !== false;
@@ -68,10 +60,8 @@ window.TranslatorSettings = {
     // 获取DOM元素
     getElements() {
         this.elements.defaultTargetLangSelect = document.getElementById('defaultTargetLang');
+        this.elements.showTranslateButtonCheckbox = document.getElementById('showTranslateButton');
         this.elements.autoTranslateCheckbox = document.getElementById('autoTranslate');
-        this.elements.selectionTranslateCheckbox = document.getElementById('selectionTranslate');
-        this.elements.shortcutTranslateCheckbox = document.getElementById('shortcutTranslate');
-        this.elements.autoDetectLanguageCheckbox = document.getElementById('autoDetectLanguage');
         this.elements.showPhoneticCheckbox = document.getElementById('showPhonetic');
         this.elements.showExamplesCheckbox = document.getElementById('showExamples');
         this.elements.memoryIntervalInput = document.getElementById('memoryInterval');
@@ -86,10 +76,8 @@ window.TranslatorSettings = {
         // 绑定设置变化事件
         const settingElements = [
             this.elements.defaultTargetLangSelect,
+            this.elements.showTranslateButtonCheckbox,
             this.elements.autoTranslateCheckbox,
-            this.elements.selectionTranslateCheckbox,
-            this.elements.shortcutTranslateCheckbox,
-            this.elements.autoDetectLanguageCheckbox,
             this.elements.showPhoneticCheckbox,
             this.elements.showExamplesCheckbox
         ];
@@ -136,10 +124,8 @@ window.TranslatorSettings = {
 
         const settings = {
             default_target_lang: this.elements.defaultTargetLangSelect?.value || 'zh',
+            show_translate_button: this.elements.showTranslateButtonCheckbox?.checked !== false,
             auto_translate: this.elements.autoTranslateCheckbox?.checked || false,
-            selection_translate: this.elements.selectionTranslateCheckbox?.checked !== false,
-            shortcut_translate: this.elements.shortcutTranslateCheckbox?.checked !== false,
-            auto_detect_language: this.elements.autoDetectLanguageCheckbox?.checked !== false,
             show_phonetic: this.elements.showPhoneticCheckbox?.checked !== false,
             show_examples: this.elements.showExamplesCheckbox?.checked || false
         };
@@ -166,7 +152,8 @@ window.TranslatorSettings = {
                 secretKey: settings.api_secret_key || '',
                 sourceLanguage: settings.source_language || 'auto',
                 targetLanguage: settings.default_target_lang || 'zh',
-                projectId: settings.api_project_id || 0
+                projectId: settings.api_project_id || 0,
+                showTranslateButton: settings.show_translate_button !== false
             };
 
             await chrome.runtime.sendMessage({

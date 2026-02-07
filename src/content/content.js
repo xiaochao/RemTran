@@ -1,9 +1,33 @@
 // 翻译提示框元素
 let tooltipElement = null;
 let currentAudioElement = null;
+// 翻译按钮元素
+let translateButton = null;
+// 当前选中的文本
+let currentSelection = '';
+// 是否显示翻译按钮（从设置中读取）
+let showTranslateButtonSetting = true;
+// 是否刚发生双击（用于防止双击后显示翻译按钮）
+let isDoubleClick = false;
 
 // 初始化日志
 console.log('[content.js] Content script loaded successfully! 双击任意单词即可翻译');
+
+// 加载设置
+async function loadSettings() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
+    if (response.success && response.settings) {
+      showTranslateButtonSetting = response.settings.showTranslateButton !== false;
+      console.log('[content.js] 翻译按钮设置:', showTranslateButtonSetting ? '显示' : '隐藏');
+    }
+  } catch (error) {
+    console.error('[content.js] 加载设置失败:', error);
+  }
+}
+
+// 初始化时加载设置
+loadSettings();
 
 // 检查扩展上下文是否有效
 function isExtensionContextValid() {
@@ -127,6 +151,17 @@ function shouldSkipTranslation(text) {
 
 // 监听双击事件
 document.addEventListener('dblclick', async (event) => {
+  // 设置双击标记
+  isDoubleClick = true;
+
+  // 双击时隐藏翻译按钮
+  hideTranslateButton();
+
+  // 300ms后重置标记（双击两次鼠标抬起之间的时间）
+  setTimeout(() => {
+    isDoubleClick = false;
+  }, 300);
+
   const selectedText = window.getSelection().toString().trim();
 
   console.log('[content.js] 双击事件触发，选中文本:', selectedText);
@@ -569,7 +604,198 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'closeTooltip') {
     removeTooltip();
+  } else if (request.action === 'settingsChanged') {
+    // 设置改变时重新加载
+    loadSettings().then(() => {
+      // 如果设置关闭了翻译按钮，隐藏当前的按钮
+      if (!showTranslateButtonSetting) {
+        hideTranslateButton();
+      }
+    });
   }
 
   return true; // 保持消息通道开放
+});
+
+// ==================== 文本选中翻译按钮功能 ====================
+
+// 创建翻译按钮
+function createTranslateButton() {
+  if (translateButton) return;
+
+  translateButton = document.createElement('div');
+  translateButton.className = 'translate-button';
+  translateButton.innerHTML = '译';
+  translateButton.title = '翻译选中文本';
+
+  // 绑定点击事件
+  translateButton.addEventListener('click', handleTranslateButtonClick);
+
+  // 添加到页面
+  document.body.appendChild(translateButton);
+}
+
+// 移除翻译按钮
+function removeTranslateButton() {
+  if (translateButton) {
+    translateButton.remove();
+    translateButton = null;
+  }
+}
+
+// 显示翻译按钮
+function showTranslateButton(x, y) {
+  // 检查设置是否允许显示翻译按钮
+  if (!showTranslateButtonSetting) {
+    return;
+  }
+
+  if (!translateButton) {
+    createTranslateButton();
+  }
+
+  translateButton.style.left = x + 'px';
+  translateButton.style.top = y + 'px';
+  translateButton.style.visibility = 'visible';
+  translateButton.style.opacity = '1';
+}
+
+// 隐藏翻译按钮
+function hideTranslateButton() {
+  if (translateButton) {
+    translateButton.style.opacity = '0';
+    translateButton.style.visibility = 'hidden';
+  }
+}
+
+// 处理翻译按钮点击事件
+async function handleTranslateButtonClick(event) {
+  event.stopPropagation();
+
+  const selectedText = currentSelection.trim();
+
+  console.log('[content.js] 翻译按钮点击，选中文本:', selectedText);
+
+  if (!selectedText) {
+    return;
+  }
+
+  // 检查扩展上下文
+  if (!isExtensionContextValid()) {
+    console.warn('扩展已重新加载，请刷新页面以继续使用翻译功能');
+    return;
+  }
+
+  try {
+    console.log('[content.js] 开始翻译流程...');
+
+    // 移除旧的提示框
+    removeTooltip();
+
+    // 获取按钮位置作为提示框的初始位置
+    const buttonRect = translateButton.getBoundingClientRect();
+    const x = window.scrollX + buttonRect.left;
+    const y = window.scrollY + buttonRect.bottom + 5;
+
+    // 创建加载中的提示框
+    console.log('[content.js] 创建加载中提示框...');
+    createTooltip(x, y, selectedText, true);
+
+    // 隐藏翻译按钮
+    hideTranslateButton();
+
+    // 发送消息给background script进行翻译
+    console.log('[content.js] 发送翻译请求到background...');
+    const response = await chrome.runtime.sendMessage({
+      action: 'translate',
+      text: selectedText
+    });
+
+    console.log('[content.js] 收到background响应:', response);
+
+    if (response.success) {
+      // 显示翻译结果
+      console.log('[content.js] 翻译成功，显示结果');
+      updateTooltip(response.data);
+    } else {
+      console.error('[content.js] 翻译失败:', response.error);
+      updateTooltip({
+        translation: '翻译失败: ' + response.error,
+        original: selectedText
+      });
+    }
+  } catch (error) {
+    console.error('[content.js] 翻译错误:', error);
+
+    // 检查是否是扩展上下文失效
+    if (!isExtensionContextValid() || error.message.includes('Extension context invalidated')) {
+      updateTooltip({
+        translation: '扩展已重新加载，请刷新页面后重试',
+        original: selectedText
+      });
+    } else {
+      updateTooltip({
+        translation: '翻译出错: ' + error.message,
+        original: selectedText
+      });
+    }
+  }
+}
+
+// 获取选中文本的位置
+function getSelectionPosition() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+
+  // 计算按钮显示位置（在选中区域的上方，水平居中）
+  const buttonWidth = 25; // 按钮宽度
+  const buttonHeight = 25; // 按钮高度
+  const margin = 8; // 与选中内容的间距
+
+  const x = window.scrollX + rect.left + (rect.width - buttonWidth) / 2;
+  const y = window.scrollY + rect.top - buttonHeight - margin;
+
+  return { x, y };
+}
+
+// 监听鼠标抬起事件（用于检测文本选中）
+document.addEventListener('mouseup', (event) => {
+  // 延迟执行，确保选中文本已经完成
+  setTimeout(() => {
+    // 如果刚发生双击，不显示翻译按钮
+    if (isDoubleClick) {
+      return;
+    }
+
+    const selectedText = window.getSelection().toString().trim();
+
+    // 如果有文本被选中
+    if (selectedText) {
+      currentSelection = selectedText;
+
+      // 获取选中区域的位置
+      const position = getSelectionPosition();
+
+      if (position) {
+        showTranslateButton(position.x, position.y);
+      }
+    } else {
+      // 没有文本被选中，隐藏按钮
+      currentSelection = '';
+      hideTranslateButton();
+    }
+  }, 10);
+});
+
+// 监听点击事件，隐藏翻译按钮
+document.addEventListener('mousedown', (event) => {
+  // 如果点击的不是翻译按钮，隐藏它
+  if (translateButton && !translateButton.contains(event.target)) {
+    hideTranslateButton();
+  }
 });
