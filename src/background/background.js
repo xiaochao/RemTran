@@ -72,8 +72,13 @@ async function saveToSupabase(original, translation, sourceLang, targetLang) {
 
     const config = await getSupabaseConfig();
 
+    // 添加超时机制（5秒超时）
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 5000)
+    );
+
     // 调用 Supabase REST API 保存翻译历史
-    const response = await fetch(`${config.url}/rest/v1/translation_history`, {
+    const fetchPromise = fetch(`${config.url}/rest/v1/translation_history`, {
       method: 'POST',
       headers: {
         'apikey': config.anonKey,
@@ -89,6 +94,8 @@ async function saveToSupabase(original, translation, sourceLang, targetLang) {
       })
     });
 
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('保存到 Supabase 失败:', errorText);
@@ -97,7 +104,11 @@ async function saveToSupabase(original, translation, sourceLang, targetLang) {
 
     return { success: true };
   } catch (error) {
-    console.error('保存到 Supabase 出错:', error);
+    if (error.message === 'timeout') {
+      console.warn('[background] 保存到Supabase超时，跳过云端同步');
+    } else {
+      console.error('保存到 Supabase 出错:', error);
+    }
     return { success: false, reason: 'network_error', error: error.message };
   }
 }
@@ -205,6 +216,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })
       .catch(error => {
         console.error('[background] 翻译出错:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // 异步响应
+  }
+
+  if (request.action === 'queryDictionary') {
+    // 快速词典查询（用于优化双击翻译性能）
+    console.log('[background] 收到词典查询请求:', request.word);
+    getDictionaryData(request.word)
+      .then(result => {
+        console.log('[background] 词典查询完成，结果:', result ? '找到' : '未找到');
+        if (result) {
+          console.log('[background] 词典查询成功:', request.word);
+          sendResponse({ success: true, data: result });
+        } else {
+          console.log('[background] 词典中没有该单词:', request.word);
+          sendResponse({ success: false, error: '单词不存在' });
+        }
+      })
+      .catch(error => {
+        console.error('[background] 词典查询出错:', error);
         sendResponse({ success: false, error: error.message });
       });
     return true; // 异步响应
@@ -379,8 +411,6 @@ function mergeTranslationResults(originalText, translations, detectedLanguage) {
 // 处理翻译请求
 async function handleTranslation(text) {
   try {
-    console.log('[background] 开始处理翻译请求:', text);
-
     // 输入验证
     if (!text || typeof text !== 'string') {
       return {
@@ -419,18 +449,15 @@ async function handleTranslation(text) {
 
     // 获取设置
     const settings = await getSettings();
-    console.log('[background] 获取到设置:', settings);
 
     // 检测语言（简单检测）
     const detectedLanguage = detectLanguage(text);
-    console.log('[background] 检测到的语言:', detectedLanguage);
 
     // 获取目标语言
     const targetLanguage = settings.targetLanguage || 'zh';
 
     // 如果检测到的语言与目标语言相同，直接返回原文本
     if (detectedLanguage === targetLanguage) {
-      console.log(`[background] 选中文本语言 (${detectedLanguage}) 与目标语言 (${targetLanguage}) 相同，跳过翻译`);
       return {
         success: false,
         error: '语言相同，无需翻译'
@@ -441,37 +468,37 @@ async function handleTranslation(text) {
     const translations = [];
 
     const wordsCount = text.split(/\s+/).filter(w => w.length > 0).length;
-    let dictUsed = false;
 
-    console.log('[background] 单词数量:', wordsCount);
-
-    if (wordsCount === 1) {
-      console.log('[background] 尝试查询词典...');
+    // 🚀 性能优化：对于单个英文单词，只查词典，不调用 API
+    if (wordsCount === 1 && /^[a-zA-Z]+$/.test(text)) {
       const dictionaryResult = await getDictionaryData(text);
+
       if (dictionaryResult) {
-        console.log('[background] 词典查询成功');
-        translations.push({ source: 'dictionary', data: dictionaryResult });
-        dictUsed = true;
+        // 构造词典翻译结果
+        const result = {
+          original: text,
+          translation: dictionaryResult.translations[0] || '',
+          translations: dictionaryResult.translations.map(t => ({ text: t, source: '词典' })),
+          detectedLanguage: 'en',
+          dictionaryData: dictionaryResult
+        };
+
+        return { success: true, data: result };
       }
     }
 
+    // 获取渠道设置
     const cs = await chrome.storage.local.get('channelSettings');
     const enables = cs.channelSettings || {};
-    console.log('[background] 渠道设置:', enables);
-    console.log('[background] 腾讯云启用状态:', enables.tencent, '类型:', typeof enables.tencent);
 
     // 并行调用所有已开启的翻译渠道
     const translationPromises = [];
 
     // 腾讯云翻译（优先从 storage，然后尝试数据库）
-    // 词典和翻译是独立的，词典查询成功不影响翻译渠道的调用
     if (enables.tencent) {
-      console.log('[background] 腾讯云已启用，准备调用翻译API');
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始腾讯云翻译...');
-
             // 优先使用 storage 中的配置
             let tencentConfig = {
               secretId: settings.secretId || '',
@@ -481,7 +508,6 @@ async function handleTranslation(text) {
 
             // 如果 storage 中没有，尝试从数据库获取
             if (!tencentConfig.secretId || !tencentConfig.secretKey) {
-              console.log('[background] Storage中没有腾讯云配置，尝试从数据库获取...');
               const dbConfig = await getChannelConfig('tencent');
               if (dbConfig) {
                 tencentConfig = {
@@ -489,16 +515,13 @@ async function handleTranslation(text) {
                   secretKey: dbConfig.secretKey || '',
                   projectId: dbConfig.projectId || 0
                 };
-                console.log('[background] 从数据库获取到腾讯云配置');
               }
             }
 
             if (!tencentConfig.secretId || !tencentConfig.secretKey) {
-              console.log('[background] 腾讯云配置缺失，secretId:', !!tencentConfig.secretId, 'secretKey:', !!tencentConfig.secretKey);
               return null;
             }
 
-            console.log('[background] 腾讯云配置完整，开始调用API...');
             const result = await translateWithTencent(
               text,
               tencentConfig.secretId,
@@ -507,7 +530,7 @@ async function handleTranslation(text) {
               settings.targetLanguage,
               tencentConfig.projectId
             );
-            console.log('[background] 腾讯云翻译成功:', result);
+
             return { source: 'tencent', data: result };
           } catch (error) {
             console.error('[background] 腾讯云翻译失败:', error);
@@ -515,8 +538,6 @@ async function handleTranslation(text) {
           }
         })()
       );
-    } else {
-      console.log('[background] 腾讯云未启用或词典已使用，dictUsed:', dictUsed, 'enables.tencent:', enables.tencent);
     }
 
     // 硅基流动翻译
@@ -524,14 +545,11 @@ async function handleTranslation(text) {
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始硅基翻译...');
             const config = await getChannelConfig('silicon');
             if (!config || !config.apiKey) {
-              console.log('[background] 硅基流动配置缺失');
               return null;
             }
             const result = await translateWithSilicon(text, config.apiKey, settings.sourceLanguage, settings.targetLanguage);
-            console.log('[background] 硅基翻译成功');
             return { source: 'silicon', data: result };
           } catch (error) {
             console.error('[background] 硅基翻译失败:', error);
@@ -546,14 +564,11 @@ async function handleTranslation(text) {
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始阿里云翻译...');
             const config = await getChannelConfig('ali');
             if (!config) {
-              console.log('[background] 阿里云配置缺失');
               return null;
             }
             const result = await translateWithAli(text, config, settings.sourceLanguage, settings.targetLanguage);
-            console.log('[background] 阿里云翻译成功');
             return { source: 'ali', data: result };
           } catch (error) {
             console.error('[background] 阿里云翻译失败:', error);
@@ -568,14 +583,11 @@ async function handleTranslation(text) {
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始 DeepL 翻译...');
             const config = await getChannelConfig('deepl');
             if (!config) {
-              console.log('[background] DeepL 配置缺失');
               return null;
             }
             const result = await translateWithDeepL(text, config, settings.sourceLanguage, settings.targetLanguage);
-            console.log('[background] DeepL 翻译成功');
             return { source: 'deepl', data: result };
           } catch (error) {
             console.error('[background] DeepL 翻译失败:', error);
@@ -590,14 +602,11 @@ async function handleTranslation(text) {
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始微软翻译...');
             const config = await getChannelConfig('microsoft');
             if (!config) {
-              console.log('[background] 微软配置缺失');
               return null;
             }
             const result = await translateWithMicrosoft(text, config, settings.sourceLanguage, settings.targetLanguage);
-            console.log('[background] 微软翻译成功');
             return { source: 'microsoft', data: result };
           } catch (error) {
             console.error('[background] 微软翻译失败:', error);
@@ -612,14 +621,11 @@ async function handleTranslation(text) {
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始智谱翻译...');
             const config = await getChannelConfig('zhipu');
             if (!config) {
-              console.log('[background] 智谱配置缺失');
               return null;
             }
             const result = await translateWithZhipu(text, config, settings.sourceLanguage, settings.targetLanguage);
-            console.log('[background] 智谱翻译成功');
             return { source: 'zhipu', data: result };
           } catch (error) {
             console.error('[background] 智谱翻译失败:', error);
@@ -634,14 +640,11 @@ async function handleTranslation(text) {
       translationPromises.push(
         (async () => {
           try {
-            console.log('[background] 开始 GPT 翻译...');
             const config = await getChannelConfig('gpt');
             if (!config) {
-              console.log('[background] GPT 配置缺失');
               return null;
             }
             const result = await translateWithGPT(text, config, settings.sourceLanguage, settings.targetLanguage);
-            console.log('[background] GPT 翻译成功');
             return { source: 'gpt', data: result };
           } catch (error) {
             console.error('[background] GPT 翻译失败:', error);
@@ -654,6 +657,7 @@ async function handleTranslation(text) {
     // 等待所有翻译完成
     if (translationPromises.length > 0) {
       const results = await Promise.all(translationPromises);
+
       for (const result of results) {
         if (result) {
           translations.push(result);
@@ -666,9 +670,8 @@ async function handleTranslation(text) {
       return { success: false, error: '没有可用的翻译结果' };
     }
 
-    // 3. 合并翻译结果
+    // 合并翻译结果
     const mergedResult = mergeTranslationResults(text, translations, detectedLanguage);
-    console.log('[background] 合并后的翻译结果:', mergedResult);
 
     const result = {
       success: true,
@@ -683,10 +686,10 @@ async function handleTranslation(text) {
     );
 
     if (shouldSaveToHistory) {
-      console.log('[background] 保存到历史记录...');
-      // 保存到历史记录
-      await saveToHistory(result.data);
-      console.log('[background] 保存成功');
+      // 异步保存历史记录，不阻塞翻译结果返回
+      saveToHistory(result.data).catch(error => {
+        console.error('[background] 异步保存历史失败:', error);
+      });
     }
 
     return result;
@@ -924,7 +927,7 @@ async function preloadDictionary() {
     const url = chrome.runtime.getURL('db/result.json');
     const resp = await fetch(url);
     if (!resp.ok) {
-      console.error('预加载词典失败:', resp.status);
+      console.error('[background] 预加载词典失败:', resp.status);
       dictionaryCache = {}; // 设置为空对象避免重复尝试
       return;
     }
@@ -939,13 +942,19 @@ async function preloadDictionary() {
 // 获取完整词典信息（使用本地JSON词典，带缓存）
 async function getDictionaryData(word) {
   try {
-    // 如果词典未加载，先加载
+    // 如果词典正在加载中（null表示未加载或正在加载），不等待
+    // 直接返回 null，让 API 处理，避免阻塞
     if (dictionaryCache === null) {
-      await preloadDictionary();
+      // 触发加载但不等待
+      preloadDictionary();
+      return null;
     }
 
     const key = word.trim().toLowerCase();
-    if (!key || key.split(/\s+/).length > 3) return null;
+
+    if (!key || key.split(/\s+/).length > 3) {
+      return null;
+    }
 
     // 直接从缓存中查询
     const entry = dictionaryCache[key];

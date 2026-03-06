@@ -10,6 +10,25 @@ let showTranslateButtonSetting = true;
 // 是否刚发生双击（用于防止双击后显示翻译按钮）
 let isDoubleClick = false;
 
+// 🚀 翻译结果缓存（避免重复查询）
+const translationCache = new Map();
+const CACHE_SIZE = 100; // 最多缓存100个结果
+
+// 获取缓存的翻译
+function getCachedTranslation(text) {
+  return translationCache.get(text) || null;
+}
+
+// 保存翻译到缓存
+function setCachedTranslation(text, result) {
+  // 如果缓存已满，删除最旧的条目
+  if (translationCache.size >= CACHE_SIZE) {
+    const firstKey = translationCache.keys().next().value;
+    translationCache.delete(firstKey);
+  }
+  translationCache.set(text, result);
+}
+
 // 初始化日志
 console.log('[content.js] Content script loaded successfully! 双击任意单词即可翻译');
 
@@ -149,6 +168,37 @@ function shouldSkipTranslation(text) {
   return false;
 }
 
+// 从本地词典快速查询单词（通过 background 查询）
+async function quickDictionaryLookup(word) {
+  try {
+    console.log('[content.js] 请求background查询词典:', word);
+
+    // 发送消息并等待响应，设置超时
+    const response = await Promise.race([
+      chrome.runtime.sendMessage({
+        action: 'queryDictionary',
+        word: word
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('查询超时')), 3000)
+      )
+    ]);
+
+    console.log('[content.js] 收到background响应:', response);
+
+    if (response && response.success && response.data) {
+      console.log('[content.js] 词典查询成功:', response.data);
+      return response.data;
+    } else {
+      console.log('[content.js] 词典中没有该单词或查询失败');
+      return null;
+    }
+  } catch (error) {
+    console.error('[content.js] 词典查询异常:', error.message);
+    return null;
+  }
+}
+
 // 监听双击事件
 document.addEventListener('dblclick', async (event) => {
   // 设置双击标记
@@ -180,27 +230,30 @@ document.addEventListener('dblclick', async (event) => {
     }
 
     try {
-      console.log('[content.js] 开始翻译流程...');
-
       // 移除旧的提示框
       removeTooltip();
 
+      // 🚀 先检查缓存
+      const cached = getCachedTranslation(selectedText);
+      if (cached) {
+        createTooltip(event.pageX, event.pageY, selectedText, false);
+        updateTooltip(cached);
+        return;
+      }
+
       // 创建加载中的提示框
-      console.log('[content.js] 创建加载中提示框...');
       createTooltip(event.pageX, event.pageY, selectedText, true);
 
       // 发送消息给background script进行翻译
-      console.log('[content.js] 发送翻译请求到background...');
       const response = await chrome.runtime.sendMessage({
         action: 'translate',
         text: selectedText
       });
 
-      console.log('[content.js] 收到background响应:', response);
-
       if (response.success) {
         // 显示翻译结果
-        console.log('[content.js] 翻译成功，显示结果');
+        // 🚀 保存到缓存
+        setCachedTranslation(selectedText, response.data);
         updateTooltip(response.data);
       } else {
         console.error('[content.js] 翻译失败:', response.error);
@@ -304,7 +357,7 @@ function createTooltip(x, y, text, isLoading = false) {
 }
 
 // 更新提示框内容
-function updateTooltip(data) {
+function updateTooltip(data, showLoadingMore = false) {
   if (!tooltipElement) return;
 
   // 检查是否有词典数据
@@ -440,6 +493,16 @@ function updateTooltip(data) {
     }
 
     html += '</div>';
+  }
+
+  // 如果正在后台加载更多结果，在底部添加提示
+  if (showLoadingMore) {
+    html += `
+      <div class="loading-more-tip">
+        <span class="loading-spinner-inline"></span>
+        正在获取更多翻译结果...
+      </div>
+    `;
   }
 
   tooltipElement.innerHTML = html;
@@ -687,8 +750,6 @@ async function handleTranslateButtonClick(event) {
   }
 
   try {
-    console.log('[content.js] 开始翻译流程...');
-
     // 移除旧的提示框
     removeTooltip();
 
@@ -698,24 +759,19 @@ async function handleTranslateButtonClick(event) {
     const y = window.scrollY + buttonRect.bottom + 5;
 
     // 创建加载中的提示框
-    console.log('[content.js] 创建加载中提示框...');
     createTooltip(x, y, selectedText, true);
 
     // 隐藏翻译按钮
     hideTranslateButton();
 
     // 发送消息给background script进行翻译
-    console.log('[content.js] 发送翻译请求到background...');
     const response = await chrome.runtime.sendMessage({
       action: 'translate',
       text: selectedText
     });
 
-    console.log('[content.js] 收到background响应:', response);
-
     if (response.success) {
       // 显示翻译结果
-      console.log('[content.js] 翻译成功，显示结果');
       updateTooltip(response.data);
     } else {
       console.error('[content.js] 翻译失败:', response.error);
